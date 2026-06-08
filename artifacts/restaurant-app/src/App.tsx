@@ -1,0 +1,89 @@
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/auth-context";
+import { ProtectedRoute } from "@/components/protected-route";
+import NotFound from "@/pages/not-found";
+import HomePage from "@/pages/home";
+import LoginPage from "@/pages/login";
+import RegisterPage from "@/pages/register";
+import UnauthorizedPage from "@/pages/unauthorized";
+import CustomerDashboard from "@/pages/customer/dashboard";
+import StaffDashboard from "@/pages/staff/dashboard";
+import KitchenDashboard from "@/pages/kitchen/dashboard";
+import ManagerDashboard from "@/pages/manager/dashboard";
+import OwnerDashboard from "@/pages/owner/dashboard";
+import AdminDashboard from "@/pages/admin/dashboard";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 1000 * 30 },
+  },
+});
+
+function Router() {
+  return (
+    <Switch>
+      <Route path="/" component={HomePage} />
+      <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={RegisterPage} />
+      <Route path="/unauthorized" component={UnauthorizedPage} />
+
+      <Route path="/customer/dashboard">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/staff/dashboard">
+        <ProtectedRoute allowedRoles={["staff"]}>
+          <StaffDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/kitchen/dashboard">
+        <ProtectedRoute allowedRoles={["kitchen_staff"]}>
+          <KitchenDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manager/dashboard">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/owner/dashboard">
+        <ProtectedRoute allowedRoles={["owner"]}>
+          <OwnerDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/dashboard">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AuthProvider>
+            <Router />
+          </AuthProvider>
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

@@ -5,10 +5,12 @@
  * Restaurant Ordering & Table Reservation API
  * OpenAPI spec version: 0.1.0
  */
+import type { UserUpdateRole } from './userUpdateRole';
 
 export interface UserUpdate {
   full_name?: string;
   /** @nullable */
   phone?: string | null;
   is_active?: boolean;
+  role?: UserUpdateRole;
 }

@@ -13,6 +13,8 @@ tags:
     description: Authentication operations
   - name: users
     description: User management
+  - name: menu
+    description: Menu item management
   - name: dashboard
     description: Dashboard summaries per role
 
@@ -181,6 +183,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+
+  /menu:
+    get:
+      operationId: listMenuItems
+      tags: [menu]
+      summary: List all menu items
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: available_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+
+    post:
+      operationId: createMenuItem
+      tags: [menu]
+      summary: Create a menu item (manager/owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuItemInput"
+      responses:
+        "201":
+          description: Created menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /menu/{id}:
+    get:
+      operationId: getMenuItem
+      tags: [menu]
+      summary: Get a menu item by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      operationId: updateMenuItem
+      tags: [menu]
+      summary: Update a menu item (manager/owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuItemUpdate"
+      responses:
+        "200":
+          description: Updated menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteMenuItem
+      tags: [menu]
+      summary: Delete a menu item (manager/owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /dashboard/customer:
     get:
@@ -365,6 +496,91 @@ components:
           type: ["string", "null"]
         is_active:
           type: boolean
+        role:
+          type: string
+          enum: [customer, staff, kitchen_staff, manager, owner, admin]
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+        category:
+          type: string
+          enum: [appetizer, main, dessert, drink, side, special]
+        image_url:
+          type: ["string", "null"]
+        is_available:
+          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - price
+        - category
+        - is_available
+        - sort_order
+        - created_at
+        - updated_at
+
+    MenuItemInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+          minimum: 0
+        category:
+          type: string
+          enum: [appetizer, main, dessert, drink, side, special]
+        image_url:
+          type: ["string", "null"]
+        is_available:
+          type: boolean
+        sort_order:
+          type: integer
+      required:
+        - name
+        - price
+        - category
+
+    MenuItemUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+          minimum: 0
+        category:
+          type: string
+          enum: [appetizer, main, dessert, drink, side, special]
+        image_url:
+          type: ["string", "null"]
+        is_available:
+          type: boolean
+        sort_order:
+          type: integer
 
     CustomerDashboard:
       type: object

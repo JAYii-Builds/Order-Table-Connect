@@ -61,11 +61,103 @@ export interface AuthResponse {
   user: User;
 }
 
+export type UserUpdateRole = typeof UserUpdateRole[keyof typeof UserUpdateRole];
+
+
+export const UserUpdateRole = {
+  customer: 'customer',
+  staff: 'staff',
+  kitchen_staff: 'kitchen_staff',
+  manager: 'manager',
+  owner: 'owner',
+  admin: 'admin',
+} as const;
+
 export interface UserUpdate {
   full_name?: string;
   /** @nullable */
   phone?: string | null;
   is_active?: boolean;
+  role?: UserUpdateRole;
+}
+
+export type MenuItemCategory = typeof MenuItemCategory[keyof typeof MenuItemCategory];
+
+
+export const MenuItemCategory = {
+  appetizer: 'appetizer',
+  main: 'main',
+  dessert: 'dessert',
+  drink: 'drink',
+  side: 'side',
+  special: 'special',
+} as const;
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  price: number;
+  category: MenuItemCategory;
+  /** @nullable */
+  image_url?: string | null;
+  is_available: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MenuItemInputCategory = typeof MenuItemInputCategory[keyof typeof MenuItemInputCategory];
+
+
+export const MenuItemInputCategory = {
+  appetizer: 'appetizer',
+  main: 'main',
+  dessert: 'dessert',
+  drink: 'drink',
+  side: 'side',
+  special: 'special',
+} as const;
+
+export interface MenuItemInput {
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** @minimum 0 */
+  price: number;
+  category: MenuItemInputCategory;
+  /** @nullable */
+  image_url?: string | null;
+  is_available?: boolean;
+  sort_order?: number;
+}
+
+export type MenuItemUpdateCategory = typeof MenuItemUpdateCategory[keyof typeof MenuItemUpdateCategory];
+
+
+export const MenuItemUpdateCategory = {
+  appetizer: 'appetizer',
+  main: 'main',
+  dessert: 'dessert',
+  drink: 'drink',
+  side: 'side',
+  special: 'special',
+} as const;
+
+export interface MenuItemUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @minimum 0 */
+  price?: number;
+  category?: MenuItemUpdateCategory;
+  /** @nullable */
+  image_url?: string | null;
+  is_available?: boolean;
+  sort_order?: number;
 }
 
 export interface ActivityItem {
@@ -124,4 +216,9 @@ export interface AdminDashboard {
   system_status: string;
   recent_activity: ActivityItem[];
 }
+
+export type ListMenuItemsParams = {
+category?: string;
+available_only?: boolean;
+};
 

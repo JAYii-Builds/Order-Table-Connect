@@ -10,11 +10,14 @@ import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import UnauthorizedPage from "@/pages/unauthorized";
 import CustomerDashboard from "@/pages/customer/dashboard";
+import CustomerMenuPage from "@/pages/customer/menu";
 import StaffDashboard from "@/pages/staff/dashboard";
 import KitchenDashboard from "@/pages/kitchen/dashboard";
 import ManagerDashboard from "@/pages/manager/dashboard";
+import ManagerMenuPage from "@/pages/manager/menu";
 import OwnerDashboard from "@/pages/owner/dashboard";
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminUsersPage from "@/pages/admin/users";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +38,11 @@ function Router() {
           <CustomerDashboard />
         </ProtectedRoute>
       </Route>
+      <Route path="/customer/menu">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerMenuPage />
+        </ProtectedRoute>
+      </Route>
 
       <Route path="/staff/dashboard">
         <ProtectedRoute allowedRoles={["staff"]}>
@@ -53,6 +61,11 @@ function Router() {
           <ManagerDashboard />
         </ProtectedRoute>
       </Route>
+      <Route path="/manager/menu">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerMenuPage />
+        </ProtectedRoute>
+      </Route>
 
       <Route path="/owner/dashboard">
         <ProtectedRoute allowedRoles={["owner"]}>
@@ -63,6 +76,11 @@ function Router() {
       <Route path="/admin/dashboard">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/users">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminUsersPage />
         </ProtectedRoute>
       </Route>
 

@@ -123,7 +123,8 @@ export const UpdateUserParams = zod.object({
 export const UpdateUserBody = zod.object({
   "full_name": zod.string().optional(),
   "phone": zod.string().nullish(),
-  "is_active": zod.boolean().optional()
+  "is_active": zod.boolean().optional(),
+  "role": zod.enum(['customer', 'staff', 'kitchen_staff', 'manager', 'owner', 'admin']).optional()
 })
 
 export const UpdateUserResponse = zod.object({
@@ -134,6 +135,117 @@ export const UpdateUserResponse = zod.object({
   "phone": zod.string().nullish(),
   "created_at": zod.coerce.date(),
   "is_active": zod.boolean()
+})
+
+
+/**
+ * @summary List all menu items
+ */
+export const ListMenuItemsQueryParams = zod.object({
+  "category": zod.coerce.string().optional(),
+  "available_only": zod.coerce.boolean().optional()
+})
+
+export const ListMenuItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "price": zod.number(),
+  "category": zod.enum(['appetizer', 'main', 'dessert', 'drink', 'side', 'special']),
+  "image_url": zod.string().nullish(),
+  "is_available": zod.boolean(),
+  "sort_order": zod.number(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListMenuItemsResponse = zod.array(ListMenuItemsResponseItem)
+
+
+/**
+ * @summary Create a menu item (manager/owner/admin)
+ */
+
+export const createMenuItemBodyPriceMin = 0;
+
+
+
+export const CreateMenuItemBody = zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "price": zod.number().min(createMenuItemBodyPriceMin),
+  "category": zod.enum(['appetizer', 'main', 'dessert', 'drink', 'side', 'special']),
+  "image_url": zod.string().nullish(),
+  "is_available": zod.boolean().optional(),
+  "sort_order": zod.number().optional()
+})
+
+
+/**
+ * @summary Get a menu item by ID
+ */
+export const GetMenuItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetMenuItemResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "price": zod.number(),
+  "category": zod.enum(['appetizer', 'main', 'dessert', 'drink', 'side', 'special']),
+  "image_url": zod.string().nullish(),
+  "is_available": zod.boolean(),
+  "sort_order": zod.number(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a menu item (manager/owner/admin)
+ */
+export const UpdateMenuItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updateMenuItemBodyPriceMin = 0;
+
+
+
+export const UpdateMenuItemBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "price": zod.number().min(updateMenuItemBodyPriceMin).optional(),
+  "category": zod.enum(['appetizer', 'main', 'dessert', 'drink', 'side', 'special']).optional(),
+  "image_url": zod.string().nullish(),
+  "is_available": zod.boolean().optional(),
+  "sort_order": zod.number().optional()
+})
+
+export const UpdateMenuItemResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "price": zod.number(),
+  "category": zod.enum(['appetizer', 'main', 'dessert', 'drink', 'side', 'special']),
+  "image_url": zod.string().nullish(),
+  "is_available": zod.boolean(),
+  "sort_order": zod.number(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a menu item (manager/owner/admin)
+ */
+export const DeleteMenuItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteMenuItemResponse = zod.object({
+  "message": zod.string()
 })
 
 

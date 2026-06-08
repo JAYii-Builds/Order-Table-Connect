@@ -8,6 +8,9 @@ import {
   User,
   LayoutDashboard,
   ChevronRight,
+  Users,
+  ShoppingBag,
+  BookOpen,
 } from "lucide-react";
 
 interface NavItem {
@@ -21,15 +24,37 @@ interface DashboardLayoutProps {
   role: string;
   roleLabel: string;
   roleColor: string;
-  navItems?: NavItem[];
 }
+
+const ROLE_NAV: Record<string, NavItem[]> = {
+  customer: [
+    { label: "Dashboard", href: "/customer/dashboard", icon: LayoutDashboard },
+    { label: "Menu", href: "/customer/menu", icon: BookOpen },
+  ],
+  staff: [
+    { label: "Dashboard", href: "/staff/dashboard", icon: LayoutDashboard },
+  ],
+  kitchen: [
+    { label: "Dashboard", href: "/kitchen/dashboard", icon: LayoutDashboard },
+  ],
+  manager: [
+    { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
+    { label: "Menu", href: "/manager/menu", icon: ShoppingBag },
+  ],
+  owner: [
+    { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+  ],
+  admin: [
+    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+    { label: "Users", href: "/admin/users", icon: Users },
+  ],
+};
 
 export function DashboardLayout({
   children,
   role,
   roleLabel,
   roleColor,
-  navItems = [],
 }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
@@ -39,9 +64,8 @@ export function DashboardLayout({
     logoutMutation.mutate(undefined, { onSettled: () => logout() });
   }
 
-  const defaultNav: NavItem[] = [
+  const navItems = ROLE_NAV[role] ?? [
     { label: "Dashboard", href: `/${role}/dashboard`, icon: LayoutDashboard },
-    ...navItems,
   ];
 
   return (
@@ -64,7 +88,7 @@ export function DashboardLayout({
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {defaultNav.map((item) => {
+          {navItems.map((item) => {
             const isActive = location === item.href;
             return (
               <Link key={item.href} href={item.href}>

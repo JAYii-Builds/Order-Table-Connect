@@ -6,27 +6,31 @@ import { requireAuth, requireRole } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
+const USER_ROLES = ["customer", "staff", "kitchen_staff", "manager", "owner", "admin"] as const;
+
+function serializeUser(u: typeof usersTable.$inferSelect) {
+  return {
+    id: u.id,
+    email: u.email,
+    full_name: u.full_name,
+    role: u.role,
+    phone: u.phone,
+    is_active: u.is_active,
+    created_at: u.created_at.toISOString(),
+  };
+}
+
 router.get(
   "/users",
   requireAuth,
   requireRole("admin", "owner", "manager"),
   async (_req, res): Promise<void> => {
     const users = await db
-      .select({
-        id: usersTable.id,
-        email: usersTable.email,
-        full_name: usersTable.full_name,
-        role: usersTable.role,
-        phone: usersTable.phone,
-        is_active: usersTable.is_active,
-        created_at: usersTable.created_at,
-      })
+      .select()
       .from(usersTable)
       .orderBy(usersTable.created_at);
 
-    res.json(
-      users.map((u) => ({ ...u, created_at: u.created_at.toISOString() }))
-    );
+    res.json(users.map(serializeUser));
   }
 );
 
@@ -39,15 +43,7 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const [user] = await db
-    .select({
-      id: usersTable.id,
-      email: usersTable.email,
-      full_name: usersTable.full_name,
-      role: usersTable.role,
-      phone: usersTable.phone,
-      is_active: usersTable.is_active,
-      created_at: usersTable.created_at,
-    })
+    .select()
     .from(usersTable)
     .where(eq(usersTable.id, params.data.id))
     .limit(1);
@@ -57,7 +53,7 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({ ...user, created_at: user.created_at.toISOString() });
+  res.json(serializeUser(user));
 });
 
 router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
@@ -75,18 +71,39 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const isSelf = req.user?.userId === params.data.id;
-  const isAdmin = req.user?.role === "admin" || req.user?.role === "owner";
+  const isAdmin = req.user?.role === "admin";
+  const isOwner = req.user?.role === "owner";
+  const canManageUsers = isAdmin || isOwner;
 
-  if (!isSelf && !isAdmin) {
+  if (!isSelf && !canManageUsers) {
     res.status(403).json({ error: "Insufficient permissions" });
     return;
   }
 
   const updateData: Record<string, unknown> = {};
+
   if (body.data.full_name !== undefined) updateData.full_name = body.data.full_name;
   if (body.data.phone !== undefined) updateData.phone = body.data.phone;
-  if (body.data.is_active !== undefined && isAdmin) {
+
+  if (body.data.is_active !== undefined && canManageUsers) {
     updateData.is_active = body.data.is_active;
+  }
+
+  if (body.data.role !== undefined && canManageUsers) {
+    if (!USER_ROLES.includes(body.data.role as (typeof USER_ROLES)[number])) {
+      res.status(400).json({ error: "Invalid role" });
+      return;
+    }
+    if (body.data.role === "admin" && !isAdmin) {
+      res.status(403).json({ error: "Only admins can assign the admin role" });
+      return;
+    }
+    updateData.role = body.data.role;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    res.status(400).json({ error: "No valid fields to update" });
+    return;
   }
 
   const [updated] = await db
@@ -100,15 +117,7 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({
-    id: updated.id,
-    email: updated.email,
-    full_name: updated.full_name,
-    role: updated.role,
-    phone: updated.phone,
-    is_active: updated.is_active,
-    created_at: updated.created_at.toISOString(),
-  });
+  res.json(serializeUser(updated));
 });
 
 export default router;

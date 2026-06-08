@@ -153,6 +153,16 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
         <p>TableServe — Web-based Ordering and Table Reservation System</p>
+        <span className="text-black/40 text-xs">
+        Designed & Built by {" "}
+          <a href="https://jayiibuilds.netlify.app/"
+             target="_blank"
+            rel="noopener noreferrer"
+            className="text-black/60 hover:text-black transition-colors duration-200 
+            underline underline-offset-2">
+          JAYii Builds</a>
+        
+        </span>
       </footer>
     </div>
   );

@@ -6,12 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ActivityItem } from './activityItem';
+import type { OrderCountsByStatus } from './orderCountsByStatus';
 
 export interface ManagerDashboard {
   role: string;
   total_revenue_today: number;
   total_orders_today: number;
   staff_on_duty: number;
-  pending_issues: number;
+  avg_fulfillment_minutes: number;
+  order_counts_by_status: OrderCountsByStatus;
   recent_activity: ActivityItem[];
 }

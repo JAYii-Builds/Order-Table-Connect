@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { count, eq, and, gt } from "drizzle-orm";
-import { db, usersTable, sessionsTable } from "@workspace/db";
+import { count, eq, and, gt, gte, sum, sql, ne } from "drizzle-orm";
+import { db, usersTable, sessionsTable, ordersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -13,6 +13,12 @@ function mockActivity(role: string) {
     { id: "3", description: "Last login was successful", type: "auth", timestamp: new Date(now.getTime() - 120000).toISOString() },
   ];
   return items;
+}
+
+function todayStart(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 router.get(
@@ -65,17 +71,48 @@ router.get(
   requireAuth,
   requireRole("manager"),
   async (req, res): Promise<void> => {
-    const staffCount = await db
-      .select({ count: count() })
-      .from(usersTable)
-      .where(and(eq(usersTable.role, "staff"), eq(usersTable.is_active, true)));
+    const start = todayStart();
+
+    const [staffCount, orderRows, statusRows, fulfillmentRow] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(usersTable)
+        .where(and(eq(usersTable.role, "staff"), eq(usersTable.is_active, true))),
+
+      db
+        .select({
+          total_revenue: sum(ordersTable.total_amount),
+          total_orders: count(),
+        })
+        .from(ordersTable)
+        .where(and(gte(ordersTable.created_at, start), ne(ordersTable.status, "cancelled"))),
+
+      db
+        .select({ status: ordersTable.status, cnt: count() })
+        .from(ordersTable)
+        .where(gte(ordersTable.created_at, start))
+        .groupBy(ordersTable.status),
+
+      db
+        .select({
+          avg_minutes: sql<number>`COALESCE(AVG(EXTRACT(EPOCH FROM (${ordersTable.updated_at} - ${ordersTable.created_at})) / 60), 0)`,
+        })
+        .from(ordersTable)
+        .where(and(gte(ordersTable.created_at, start), eq(ordersTable.status, "delivered"))),
+    ]);
+
+    const counts = { pending: 0, confirmed: 0, preparing: 0, ready: 0, delivered: 0, cancelled: 0 };
+    for (const row of statusRows) {
+      if (row.status in counts) counts[row.status as keyof typeof counts] = Number(row.cnt);
+    }
 
     res.json({
       role: "manager",
-      total_revenue_today: 0,
-      total_orders_today: 0,
-      staff_on_duty: staffCount[0]?.count ?? 0,
-      pending_issues: 0,
+      total_revenue_today: Number(orderRows[0]?.total_revenue ?? 0),
+      total_orders_today: Number(orderRows[0]?.total_orders ?? 0),
+      staff_on_duty: Number(staffCount[0]?.count ?? 0),
+      avg_fulfillment_minutes: Math.round(Number(fulfillmentRow[0]?.avg_minutes ?? 0) * 10) / 10,
+      order_counts_by_status: counts,
       recent_activity: mockActivity("manager"),
     });
   }

@@ -485,7 +485,15 @@ export const GetManagerDashboardResponse = zod.object({
   "total_revenue_today": zod.number(),
   "total_orders_today": zod.number(),
   "staff_on_duty": zod.number(),
-  "pending_issues": zod.number(),
+  "avg_fulfillment_minutes": zod.number(),
+  "order_counts_by_status": zod.object({
+  "pending": zod.number(),
+  "confirmed": zod.number(),
+  "preparing": zod.number(),
+  "ready": zod.number(),
+  "delivered": zod.number(),
+  "cancelled": zod.number()
+}),
   "recent_activity": zod.array(zod.object({
   "id": zod.string(),
   "description": zod.string(),

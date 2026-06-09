@@ -27,6 +27,7 @@ export * from './menuItemUpdate';
 export * from './menuItemUpdateCategory';
 export * from './messageResponse';
 export * from './order';
+export * from './orderCountsByStatus';
 export * from './orderItemOutput';
 export * from './orderStatus';
 export * from './ownerDashboard';

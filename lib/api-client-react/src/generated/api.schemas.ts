@@ -191,12 +191,22 @@ export interface KitchenDashboard {
   recent_activity: ActivityItem[];
 }
 
+export interface OrderCountsByStatus {
+  pending: number;
+  confirmed: number;
+  preparing: number;
+  ready: number;
+  delivered: number;
+  cancelled: number;
+}
+
 export interface ManagerDashboard {
   role: string;
   total_revenue_today: number;
   total_orders_today: number;
   staff_on_duty: number;
-  pending_issues: number;
+  avg_fulfillment_minutes: number;
+  order_counts_by_status: OrderCountsByStatus;
   recent_activity: ActivityItem[];
 }
 

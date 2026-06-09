@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/auth-context";
+import { CartProvider } from "@/contexts/cart-context";
 import { ProtectedRoute } from "@/components/protected-route";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home";
@@ -11,6 +12,10 @@ import RegisterPage from "@/pages/register";
 import UnauthorizedPage from "@/pages/unauthorized";
 import CustomerDashboard from "@/pages/customer/dashboard";
 import CustomerMenuPage from "@/pages/customer/menu";
+import CustomerCartPage from "@/pages/customer/cart";
+import CustomerCheckoutPage from "@/pages/customer/checkout";
+import CustomerOrdersPage from "@/pages/customer/orders";
+import CustomerReservationsPage from "@/pages/customer/reservations";
 import StaffDashboard from "@/pages/staff/dashboard";
 import KitchenDashboard from "@/pages/kitchen/dashboard";
 import ManagerDashboard from "@/pages/manager/dashboard";
@@ -41,6 +46,26 @@ function Router() {
       <Route path="/customer/menu">
         <ProtectedRoute allowedRoles={["customer"]}>
           <CustomerMenuPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer/cart">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerCartPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer/checkout">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerCheckoutPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer/orders">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerOrdersPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer/reservations">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerReservationsPage />
         </ProtectedRoute>
       </Route>
 
@@ -95,7 +120,9 @@ function App() {
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <AuthProvider>
-            <Router />
+            <CartProvider>
+              <Router />
+            </CartProvider>
           </AuthProvider>
         </WouterRouter>
         <Toaster />

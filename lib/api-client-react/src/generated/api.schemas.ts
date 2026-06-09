@@ -217,6 +217,119 @@ export interface AdminDashboard {
   recent_activity: ActivityItem[];
 }
 
+export interface OrderItemOutput {
+  id: string;
+  order_id: string;
+  menu_item_id: string;
+  menu_item_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
+
+
+export const OrderStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  preparing: 'preparing',
+  ready: 'ready',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Order {
+  id: string;
+  customer_id: string;
+  status: OrderStatus;
+  total_amount: number;
+  /** @nullable */
+  notes?: string | null;
+  items: OrderItemOutput[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateOrderInputItemsItem = {
+  menu_item_id: string;
+  /** @minimum 1 */
+  quantity: number;
+};
+
+export interface CreateOrderInput {
+  items: CreateOrderInputItemsItem[];
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type UpdateOrderStatusInputStatus = typeof UpdateOrderStatusInputStatus[keyof typeof UpdateOrderStatusInputStatus];
+
+
+export const UpdateOrderStatusInputStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  preparing: 'preparing',
+  ready: 'ready',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface UpdateOrderStatusInput {
+  status: UpdateOrderStatusInputStatus;
+}
+
+export type ReservationStatus = typeof ReservationStatus[keyof typeof ReservationStatus];
+
+
+export const ReservationStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+  completed: 'completed',
+} as const;
+
+export interface Reservation {
+  id: string;
+  customer_id: string;
+  /** @nullable */
+  order_id?: string | null;
+  reservation_date: string;
+  reservation_time: string;
+  guest_count: number;
+  status: ReservationStatus;
+  /** @nullable */
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateReservationInput {
+  order_id: string;
+  reservation_date: string;
+  reservation_time: string;
+  /** @minimum 1 */
+  guest_count: number;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type UpdateReservationInputStatus = typeof UpdateReservationInputStatus[keyof typeof UpdateReservationInputStatus];
+
+
+export const UpdateReservationInputStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+  completed: 'completed',
+} as const;
+
+export interface UpdateReservationInput {
+  status?: UpdateReservationInputStatus;
+  /** @nullable */
+  notes?: string | null;
+}
+
 export type ListMenuItemsParams = {
 category?: string;
 available_only?: boolean;

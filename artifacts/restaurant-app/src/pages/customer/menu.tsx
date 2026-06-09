@@ -2,10 +2,13 @@ import { useState } from "react";
 import {
   useListMenuItems,
   getListMenuItemsQueryKey,
-  MenuItem,
+  type MenuItem,
 } from "@workspace/api-client-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { ShoppingCart, Search, UtensilsCrossed, Leaf, Wine, Coffee, Star } from "lucide-react";
+import { useCart } from "@/contexts/cart-context";
+import { useToast } from "@/hooks/use-toast";
+import { ShoppingCart, Search, UtensilsCrossed, Leaf, Wine, Coffee, Star, Plus, Check } from "lucide-react";
+import { useLocation } from "wouter";
 
 const CATEGORIES = [
   { value: "all", label: "All Items", icon: UtensilsCrossed },
@@ -27,12 +30,25 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 function MenuCard({ item }: { item: MenuItem }) {
+  const { addItem, items } = useCart();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const inCart = items.find((i) => i.menuItem.id === item.id);
+
+  function handleAdd() {
+    addItem(item);
+    toast({
+      title: `Added to cart`,
+      description: item.name,
+    });
+  }
+
   return (
     <div
       className="bg-card border border-card-border rounded-xl overflow-hidden hover:shadow-md transition-shadow group"
       data-testid={`menu-card-${item.id}`}
     >
-      {/* Image placeholder */}
       <div className="h-44 bg-muted flex items-center justify-center relative overflow-hidden">
         {item.image_url ? (
           <img
@@ -53,21 +69,20 @@ function MenuCard({ item }: { item: MenuItem }) {
         <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORY_COLORS[item.category] ?? "bg-muted text-muted-foreground"}`}>
           {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
         </div>
+        {inCart && (
+          <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1.5">
+            {inCart.quantity}
+          </div>
+        )}
       </div>
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h3
-            className="font-semibold text-foreground leading-snug"
-            data-testid={`menu-item-name-${item.id}`}
-          >
+          <h3 className="font-semibold text-foreground leading-snug" data-testid={`menu-item-name-${item.id}`}>
             {item.name}
           </h3>
-          <span
-            className="text-primary font-bold text-base shrink-0"
-            data-testid={`menu-item-price-${item.id}`}
-          >
-            ${Number(item.price).toFixed(2)}
+          <span className="text-primary font-bold text-base shrink-0" data-testid={`menu-item-price-${item.id}`}>
+            ₱{Number(item.price).toFixed(2)}
           </span>
         </div>
         {item.description && (
@@ -75,14 +90,26 @@ function MenuCard({ item }: { item: MenuItem }) {
             {item.description}
           </p>
         )}
-        <button
-          disabled={!item.is_available}
-          data-testid={`button-add-to-cart-${item.id}`}
-          className="mt-3 w-full py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-        >
-          <ShoppingCart className="h-3.5 w-3.5" />
-          {item.is_available ? "Add to Order" : "Unavailable"}
-        </button>
+        <div className="mt-3 flex gap-2">
+          <button
+            disabled={!item.is_available}
+            onClick={handleAdd}
+            data-testid={`button-add-to-cart-${item.id}`}
+            className="flex-1 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {item.is_available ? "Add to Cart" : "Unavailable"}
+          </button>
+          {inCart && (
+            <button
+              onClick={() => navigate("/customer/cart")}
+              className="px-3 py-2 text-xs font-medium bg-chart-2/15 text-chart-2 border border-chart-2/30 rounded-md hover:bg-chart-2/25 transition-colors flex items-center gap-1"
+            >
+              <Check className="h-3.5 w-3.5" />
+              {inCart.quantity}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -115,11 +142,10 @@ export default function CustomerMenuPage() {
             Menu
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Browse our full menu and add items to your order.
+            Browse our full menu and add items to your cart.
           </p>
         </div>
 
-        {/* Search */}
         <div className="relative mb-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -132,7 +158,6 @@ export default function CustomerMenuPage() {
           />
         </div>
 
-        {/* Category tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
           {CATEGORIES.map((cat) => (
             <button
@@ -151,19 +176,14 @@ export default function CustomerMenuPage() {
           ))}
         </div>
 
-        {/* Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-card border border-card-border rounded-xl overflow-hidden animate-pulse"
-              >
+              <div key={i} className="bg-card border border-card-border rounded-xl overflow-hidden animate-pulse">
                 <div className="h-44 bg-muted" />
                 <div className="p-4 space-y-2">
                   <div className="h-4 bg-muted rounded w-3/4" />
                   <div className="h-3 bg-muted rounded w-full" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
                   <div className="h-8 bg-muted rounded mt-3" />
                 </div>
               </div>

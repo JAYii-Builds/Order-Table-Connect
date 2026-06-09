@@ -3,6 +3,7 @@ import { eq, desc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, ordersTable, orderItemsTable, menuItemsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { broadcast } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -141,7 +142,9 @@ router.post("/orders", requireAuth, async (req, res, next): Promise<void> => {
       menu_item_name: menuItems.find((m) => m.id === oi.menu_item_id)?.name ?? "",
     }));
 
-    res.status(201).json(serializeOrder(order, enrichedItems));
+    const serialized = serializeOrder(order, enrichedItems);
+    res.status(201).json(serialized);
+    broadcast({ type: "order:created", payload: { orderId, customerId: customer.userId } });
   } catch (err) {
     next(err);
   }
@@ -228,7 +231,9 @@ router.patch(
         .returning();
 
       const items = await fetchItemsForOrders([id]);
-      res.json(serializeOrder(updated, items));
+      const serialized = serializeOrder(updated, items);
+      res.json(serialized);
+      broadcast({ type: "order:updated", payload: { orderId: id, status: updated.status } });
     } catch (err) {
       next(err);
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useRealtime } from "@/hooks/use-realtime";
 import {
   useCreateReservation,
   useListReservations,
@@ -73,6 +74,7 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
 }
 
 export default function CustomerReservationsPage() {
+  useRealtime();
   const [location] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();

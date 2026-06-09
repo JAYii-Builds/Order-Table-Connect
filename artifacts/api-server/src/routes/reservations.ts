@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, reservationsTable, ordersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { broadcast } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -89,6 +90,7 @@ router.post("/reservations", requireAuth, async (req, res, next): Promise<void> 
       .returning();
 
     res.status(201).json(serializeReservation(reservation));
+    broadcast({ type: "reservation:created", payload: { reservationId: reservation.id, customerId: customer.userId } });
   } catch (err) {
     next(err);
   }
@@ -182,6 +184,7 @@ router.patch("/reservations/:id", requireAuth, async (req, res, next): Promise<v
       .returning();
 
     res.json(serializeReservation(updated));
+    broadcast({ type: "reservation:updated", payload: { reservationId: id, status: updated.status } });
   } catch (err) {
     next(err);
   }

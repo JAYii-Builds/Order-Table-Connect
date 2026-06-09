@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
 import { useLogout } from "@workspace/api-client-react";
+import { useCart } from "@/contexts/cart-context";
 import {
   UtensilsCrossed,
   LogOut,
@@ -11,12 +12,16 @@ import {
   Users,
   ShoppingBag,
   BookOpen,
+  ShoppingCart,
+  CalendarDays,
+  ClipboardList,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   href: string;
   icon: typeof LayoutDashboard;
+  badge?: number;
 }
 
 interface DashboardLayoutProps {
@@ -25,30 +30,6 @@ interface DashboardLayoutProps {
   roleLabel: string;
   roleColor: string;
 }
-
-const ROLE_NAV: Record<string, NavItem[]> = {
-  customer: [
-    { label: "Dashboard", href: "/customer/dashboard", icon: LayoutDashboard },
-    { label: "Menu", href: "/customer/menu", icon: BookOpen },
-  ],
-  staff: [
-    { label: "Dashboard", href: "/staff/dashboard", icon: LayoutDashboard },
-  ],
-  kitchen: [
-    { label: "Dashboard", href: "/kitchen/dashboard", icon: LayoutDashboard },
-  ],
-  manager: [
-    { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
-    { label: "Menu", href: "/manager/menu", icon: ShoppingBag },
-  ],
-  owner: [
-    { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  ],
-  admin: [
-    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Users", href: "/admin/users", icon: Users },
-  ],
-};
 
 export function DashboardLayout({
   children,
@@ -59,10 +40,38 @@ export function DashboardLayout({
   const { user, logout } = useAuth();
   const [location] = useLocation();
   const logoutMutation = useLogout();
+  const { itemCount } = useCart();
 
   function handleLogout() {
     logoutMutation.mutate(undefined, { onSettled: () => logout() });
   }
+
+  const ROLE_NAV: Record<string, NavItem[]> = {
+    customer: [
+      { label: "Dashboard", href: "/customer/dashboard", icon: LayoutDashboard },
+      { label: "Menu", href: "/customer/menu", icon: BookOpen },
+      { label: "My Cart", href: "/customer/cart", icon: ShoppingCart, badge: itemCount || undefined },
+      { label: "My Orders", href: "/customer/orders", icon: ClipboardList },
+      { label: "Reservations", href: "/customer/reservations", icon: CalendarDays },
+    ],
+    staff: [
+      { label: "Dashboard", href: "/staff/dashboard", icon: LayoutDashboard },
+    ],
+    kitchen: [
+      { label: "Dashboard", href: "/kitchen/dashboard", icon: LayoutDashboard },
+    ],
+    manager: [
+      { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
+      { label: "Menu", href: "/manager/menu", icon: ShoppingBag },
+    ],
+    owner: [
+      { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+    ],
+    admin: [
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      { label: "Users", href: "/admin/users", icon: Users },
+    ],
+  };
 
   const navItems = ROLE_NAV[role] ?? [
     { label: "Dashboard", href: `/${role}/dashboard`, icon: LayoutDashboard },
@@ -102,7 +111,13 @@ export function DashboardLayout({
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                   <span className="flex-1">{item.label}</span>
-                  {isActive && <ChevronRight className="h-3.5 w-3.5 opacity-60" />}
+                  {item.badge ? (
+                    <span className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1.5">
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  ) : isActive ? (
+                    <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                  ) : null}
                 </div>
               </Link>
             );

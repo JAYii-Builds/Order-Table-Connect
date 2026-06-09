@@ -250,6 +250,183 @@ export const DeleteMenuItemResponse = zod.object({
 
 
 /**
+ * @summary List orders (own for customers, all for staff+)
+ */
+export const ListOrdersResponseItem = zod.object({
+  "id": zod.string(),
+  "customer_id": zod.string(),
+  "status": zod.enum(['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled']),
+  "total_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "order_id": zod.string(),
+  "menu_item_id": zod.string(),
+  "menu_item_name": zod.string(),
+  "quantity": zod.number(),
+  "unit_price": zod.number(),
+  "subtotal": zod.number()
+})),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
+
+
+/**
+ * @summary Place a new order
+ */
+
+
+
+export const CreateOrderBody = zod.object({
+  "items": zod.array(zod.object({
+  "menu_item_id": zod.string(),
+  "quantity": zod.number().min(1)
+})),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get an order by ID
+ */
+export const GetOrderParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetOrderResponse = zod.object({
+  "id": zod.string(),
+  "customer_id": zod.string(),
+  "status": zod.enum(['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled']),
+  "total_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "order_id": zod.string(),
+  "menu_item_id": zod.string(),
+  "menu_item_name": zod.string(),
+  "quantity": zod.number(),
+  "unit_price": zod.number(),
+  "subtotal": zod.number()
+})),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update order status (staff/kitchen/manager+)
+ */
+export const UpdateOrderStatusParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateOrderStatusBody = zod.object({
+  "status": zod.enum(['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'])
+})
+
+export const UpdateOrderStatusResponse = zod.object({
+  "id": zod.string(),
+  "customer_id": zod.string(),
+  "status": zod.enum(['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled']),
+  "total_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "order_id": zod.string(),
+  "menu_item_id": zod.string(),
+  "menu_item_name": zod.string(),
+  "quantity": zod.number(),
+  "unit_price": zod.number(),
+  "subtotal": zod.number()
+})),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List reservations (own for customers, all for staff+)
+ */
+export const ListReservationsResponseItem = zod.object({
+  "id": zod.string(),
+  "customer_id": zod.string(),
+  "order_id": zod.string().nullish(),
+  "reservation_date": zod.string(),
+  "reservation_time": zod.string(),
+  "guest_count": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "notes": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListReservationsResponse = zod.array(ListReservationsResponseItem)
+
+
+/**
+ * @summary Create a table reservation (requires ₱200+ order)
+ */
+
+
+
+export const CreateReservationBody = zod.object({
+  "order_id": zod.string(),
+  "reservation_date": zod.string(),
+  "reservation_time": zod.string(),
+  "guest_count": zod.number().min(1),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get a reservation by ID
+ */
+export const GetReservationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetReservationResponse = zod.object({
+  "id": zod.string(),
+  "customer_id": zod.string(),
+  "order_id": zod.string().nullish(),
+  "reservation_date": zod.string(),
+  "reservation_time": zod.string(),
+  "guest_count": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "notes": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update reservation status/notes
+ */
+export const UpdateReservationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateReservationBody = zod.object({
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']).optional(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateReservationResponse = zod.object({
+  "id": zod.string(),
+  "customer_id": zod.string(),
+  "order_id": zod.string().nullish(),
+  "reservation_date": zod.string(),
+  "reservation_time": zod.string(),
+  "guest_count": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "notes": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
  * @summary Customer dashboard summary
  */
 export const GetCustomerDashboardResponse = zod.object({

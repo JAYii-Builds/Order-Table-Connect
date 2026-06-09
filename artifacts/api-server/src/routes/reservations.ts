@@ -9,7 +9,7 @@ const router: IRouter = Router();
 
 const MIN_ORDER_AMOUNT = 200;
 
-type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed";
+type ReservationStatus = "pending" | "confirmed" | "seated" | "completed" | "cancelled";
 
 function serializeReservation(r: typeof reservationsTable.$inferSelect) {
   return {

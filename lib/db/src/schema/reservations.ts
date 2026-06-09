@@ -5,8 +5,9 @@ import { ordersTable } from "./orders";
 export const reservationStatusEnum = pgEnum("reservation_status", [
   "pending",
   "confirmed",
-  "cancelled",
+  "seated",
   "completed",
+  "cancelled",
 ]);
 
 export const reservationsTable = pgTable("reservations", {

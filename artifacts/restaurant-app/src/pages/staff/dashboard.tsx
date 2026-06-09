@@ -1,20 +1,37 @@
-import { Table2, ShoppingBag, CalendarDays, ClipboardList, ChevronRight, Loader2 } from "lucide-react";
+import {
+  Table2,
+  ShoppingBag,
+  CalendarDays,
+  ClipboardList,
+  ChevronRight,
+  Loader2,
+  Users,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import {
   useGetStaffDashboard,
   getGetStaffDashboardQueryKey,
   useListOrders,
   getListOrdersQueryKey,
   useUpdateOrderStatus,
+  useListReservations,
+  getListReservationsQueryKey,
+  useUpdateReservation,
   type Order,
+  type Reservation,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { StatCard } from "@/components/stat-card";
 import { useRealtime } from "@/hooks/use-realtime";
 
+// ─── Order queue types & config ──────────────────────────────────────────────
+
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "delivered" | "cancelled";
 
-const STATUS_STYLES: Record<string, string> = {
+const ORDER_STATUS_STYLES: Record<string, string> = {
   pending:   "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
   confirmed: "bg-blue-500/15 text-blue-400 border-blue-500/20",
   preparing: "bg-orange-500/15 text-orange-400 border-orange-500/20",
@@ -23,7 +40,7 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: "bg-destructive/15 text-destructive border-destructive/20",
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const ORDER_STATUS_LABELS: Record<string, string> = {
   pending:   "Pending",
   confirmed: "Confirmed",
   preparing: "Preparing",
@@ -32,14 +49,56 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-const STAFF_NEXT: Partial<Record<OrderStatus, { status: OrderStatus; label: string; color: string }>> = {
+const ORDER_NEXT: Partial<Record<OrderStatus, { status: OrderStatus; label: string; color: string }>> = {
   pending:   { status: "confirmed", label: "Confirm",      color: "bg-blue-600 hover:bg-blue-500 text-white" },
   confirmed: { status: "preparing", label: "Start Prep",   color: "bg-orange-600 hover:bg-orange-500 text-white" },
   preparing: { status: "ready",     label: "Mark Ready",   color: "bg-chart-2 hover:opacity-90 text-white" },
   ready:     { status: "delivered", label: "Delivered",    color: "bg-muted hover:bg-muted/70 text-foreground" },
 };
 
-const ACTIVE_STATUSES: OrderStatus[] = ["pending", "confirmed", "preparing", "ready"];
+const ACTIVE_ORDER_STATUSES: OrderStatus[] = ["pending", "confirmed", "preparing", "ready"];
+
+// ─── Reservation types & config ───────────────────────────────────────────────
+
+type ReservationStatus = "pending" | "confirmed" | "seated" | "completed" | "cancelled";
+
+const RES_STATUS_STYLES: Record<string, string> = {
+  pending:   "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
+  confirmed: "bg-blue-500/15 text-blue-400 border-blue-500/20",
+  seated:    "bg-chart-3/15 text-chart-3 border-chart-3/20",
+  completed: "bg-muted/60 text-muted-foreground border-border",
+  cancelled: "bg-destructive/15 text-destructive border-destructive/20",
+};
+
+const RES_STATUS_LABELS: Record<string, string> = {
+  pending:   "Pending",
+  confirmed: "Confirmed",
+  seated:    "Seated",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+interface ResAction {
+  status: ReservationStatus;
+  label: string;
+  color: string;
+}
+
+const RES_NEXT: Partial<Record<ReservationStatus, ResAction[]>> = {
+  pending:   [
+    { status: "confirmed", label: "Confirm",  color: "bg-blue-600 hover:bg-blue-500 text-white" },
+    { status: "cancelled", label: "Cancel",   color: "bg-destructive/80 hover:bg-destructive text-white" },
+  ],
+  confirmed: [
+    { status: "seated",    label: "Seat Table",  color: "bg-chart-3 hover:opacity-90 text-white" },
+    { status: "cancelled", label: "Cancel",      color: "bg-destructive/80 hover:bg-destructive text-white" },
+  ],
+  seated:    [
+    { status: "completed", label: "Complete",    color: "bg-muted hover:bg-muted/70 text-foreground" },
+  ],
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string): string {
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -49,10 +108,24 @@ function timeAgo(iso: string): string {
   return `${Math.floor(mins / 60)}h ago`;
 }
 
+function todayDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatTime(t: string): string {
+  const [h, m] = t.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  return `${hour % 12 || 12}:${m} ${ampm}`;
+}
+
+// ─── Order card ───────────────────────────────────────────────────────────────
+
 function OrderCard({ order }: { order: Order }) {
   const queryClient = useQueryClient();
   const mutation = useUpdateOrderStatus();
-  const next = STAFF_NEXT[order.status as OrderStatus];
+  const next = ORDER_NEXT[order.status as OrderStatus];
 
   function advance() {
     if (!next) return;
@@ -75,8 +148,8 @@ function OrderCard({ order }: { order: Order }) {
           <p className="font-semibold text-foreground text-sm mt-0.5">₱{order.total_amount.toFixed(2)}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[order.status] ?? ""}`}>
-            {STATUS_LABELS[order.status] ?? order.status}
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] ?? ""}`}>
+            {ORDER_STATUS_LABELS[order.status] ?? order.status}
           </span>
           <span className="text-xs text-muted-foreground">{timeAgo(order.created_at)}</span>
         </div>
@@ -103,16 +176,94 @@ function OrderCard({ order }: { order: Order }) {
           {mutation.isPending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <>
-              {next.label}
-              <ChevronRight className="h-3.5 w-3.5" />
-            </>
+            <>{next.label}<ChevronRight className="h-3.5 w-3.5" /></>
           )}
         </button>
       )}
     </div>
   );
 }
+
+// ─── Reservation card ─────────────────────────────────────────────────────────
+
+function ReservationCard({ reservation }: { reservation: Reservation }) {
+  const queryClient = useQueryClient();
+  const mutation = useUpdateReservation();
+  const actions = RES_NEXT[reservation.status as ReservationStatus] ?? [];
+  const [pending, setPending] = React.useState<ReservationStatus | null>(null);
+
+  function update(status: ReservationStatus) {
+    setPending(status);
+    mutation.mutate(
+      { id: reservation.id, data: { status } },
+      {
+        onSettled: () => setPending(null),
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListReservationsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetStaffDashboardQueryKey() });
+        },
+      }
+    );
+  }
+
+  const isTerminal = reservation.status === "completed" || reservation.status === "cancelled";
+
+  return (
+    <div className={`bg-background border rounded-xl p-4 flex flex-col gap-3 ${isTerminal ? "border-border opacity-60" : "border-border"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-mono text-xs text-muted-foreground">#{reservation.id.slice(0, 8).toUpperCase()}</p>
+          <p className="font-semibold text-foreground text-sm mt-0.5">{formatTime(reservation.reservation_time)}</p>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${RES_STATUS_STYLES[reservation.status] ?? ""}`}>
+          {RES_STATUS_LABELS[reservation.status] ?? reservation.status}
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Users className="h-3.5 w-3.5 shrink-0" />
+          <span>{reservation.guest_count} {reservation.guest_count === 1 ? "guest" : "guests"}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>{formatTime(reservation.reservation_time)} · {reservation.reservation_date}</span>
+        </div>
+        {reservation.notes && (
+          <p className="text-xs text-muted-foreground italic">"{reservation.notes}"</p>
+        )}
+      </div>
+
+      {actions.length > 0 && (
+        <div className={`grid gap-2 ${actions.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {actions.map((action) => (
+            <button
+              key={action.status}
+              onClick={() => update(action.status)}
+              disabled={mutation.isPending}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 ${action.color}`}
+            >
+              {pending === action.status ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : action.status === "cancelled" ? (
+                <><XCircle className="h-3.5 w-3.5" />{action.label}</>
+              ) : action.status === "completed" ? (
+                <><CheckCircle2 className="h-3.5 w-3.5" />{action.label}</>
+              ) : (
+                <>{action.label}<ChevronRight className="h-3.5 w-3.5" /></>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Missing React import ─────────────────────────────────────────────────────
+import React from "react";
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StaffDashboard() {
   useRealtime();
@@ -125,9 +276,23 @@ export default function StaffDashboard() {
     query: { queryKey: getListOrdersQueryKey() },
   });
 
+  const { data: reservations = [], isLoading: reservationsLoading } = useListReservations({
+    query: { queryKey: getListReservationsQueryKey() },
+  });
+
+  const today = todayDateStr();
+
   const activeOrders = orders
-    .filter((o) => ACTIVE_STATUSES.includes(o.status as OrderStatus))
+    .filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status as OrderStatus))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  const todaysReservations = reservations
+    .filter((r) => r.reservation_date === today)
+    .sort((a, b) => a.reservation_time.localeCompare(b.reservation_time));
+
+  const activeReservations = todaysReservations.filter(
+    (r) => r.status !== "completed" && r.status !== "cancelled"
+  );
 
   return (
     <DashboardLayout role="staff" roleLabel="Staff" roleColor="text-chart-2">
@@ -137,10 +302,11 @@ export default function StaffDashboard() {
             Staff Dashboard
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage tables, orders, and today's reservations.
+            Manage orders, reservations, and tables.
           </p>
         </div>
 
+        {/* Stat cards */}
         {statsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             {[1, 2, 3].map((i) => (
@@ -154,13 +320,6 @@ export default function StaffDashboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <StatCard
-              title="Active Tables"
-              value={data?.active_tables ?? 0}
-              icon={Table2}
-              colorClass="bg-chart-2/15 text-chart-2"
-              testId="stat-active-tables"
-            />
-            <StatCard
               title="Active Orders"
               value={activeOrders.length}
               icon={ShoppingBag}
@@ -169,15 +328,23 @@ export default function StaffDashboard() {
             />
             <StatCard
               title="Today's Reservations"
-              value={data?.todays_reservations ?? 0}
+              value={todaysReservations.length}
               icon={CalendarDays}
               colorClass="bg-chart-3/15 text-chart-3"
               testId="stat-todays-reservations"
             />
+            <StatCard
+              title="Active Tables"
+              value={data?.active_tables ?? 0}
+              icon={Table2}
+              colorClass="bg-chart-2/15 text-chart-2"
+              testId="stat-active-tables"
+            />
           </div>
         )}
 
-        <div className="bg-card border border-card-border rounded-xl p-6">
+        {/* Order queue */}
+        <div className="bg-card border border-card-border rounded-xl p-6 mb-6">
           <div className="flex items-center gap-2 mb-5">
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
             <h2 className="font-semibold text-foreground text-sm">Order Queue</h2>
@@ -205,7 +372,7 @@ export default function StaffDashboard() {
               ))}
             </div>
           ) : activeOrders.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-10">
               <ShoppingBag className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
               <p className="text-muted-foreground text-sm">No active orders right now.</p>
             </div>
@@ -215,6 +382,73 @@ export default function StaffDashboard() {
                 <OrderCard key={order.id} order={order} />
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Reservations */}
+        <div className="bg-card border border-card-border rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold text-foreground text-sm">Today's Reservations</h2>
+            {activeReservations.length > 0 && (
+              <span className="ml-auto bg-chart-3/15 text-chart-3 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {activeReservations.length} active
+              </span>
+            )}
+          </div>
+
+          {reservationsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-background border border-border rounded-xl p-4 animate-pulse space-y-3">
+                  <div className="flex justify-between">
+                    <div className="space-y-1.5">
+                      <div className="h-3 w-20 bg-muted rounded" />
+                      <div className="h-4 w-16 bg-muted rounded" />
+                    </div>
+                    <div className="h-5 w-20 bg-muted rounded-full" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-24 bg-muted rounded" />
+                    <div className="h-3 w-32 bg-muted rounded" />
+                  </div>
+                  <div className="h-8 w-full bg-muted rounded-lg" />
+                </div>
+              ))}
+            </div>
+          ) : todaysReservations.length === 0 ? (
+            <div className="text-center py-10">
+              <CalendarDays className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No reservations for today.</p>
+            </div>
+          ) : (
+            <>
+              {/* Active reservations */}
+              {activeReservations.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                  {activeReservations.map((r) => (
+                    <ReservationCard key={r.id} reservation={r} />
+                  ))}
+                </div>
+              )}
+
+              {/* Completed / cancelled (collapsed) */}
+              {todaysReservations.length > activeReservations.length && (
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors py-1 list-none flex items-center gap-1.5">
+                    <ChevronRight className="h-3.5 w-3.5 group-open:rotate-90 transition-transform" />
+                    {todaysReservations.length - activeReservations.length} completed / cancelled
+                  </summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+                    {todaysReservations
+                      .filter((r) => r.status === "completed" || r.status === "cancelled")
+                      .map((r) => (
+                        <ReservationCard key={r.id} reservation={r} />
+                      ))}
+                  </div>
+                </details>
+              )}
+            </>
           )}
         </div>
       </div>

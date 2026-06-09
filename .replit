@@ -69,23 +69,6 @@ waitForPort = 8081
 PORT = "8081"
 BASE_PATH = "/__mockup"
 
-[[workflows.workflow]]
-name = "Project1"
-mode = "parallel"
-author = 60569897
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "artifacts/restaurant-app: web"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "artifacts/api-server: API Server"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "artifacts/mockup-sandbox: Component Preview Server"
-
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true

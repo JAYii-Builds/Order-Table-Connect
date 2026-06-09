@@ -12,6 +12,7 @@ export type ReservationStatus = typeof ReservationStatus[keyof typeof Reservatio
 export const ReservationStatus = {
   pending: 'pending',
   confirmed: 'confirmed',
-  cancelled: 'cancelled',
+  seated: 'seated',
   completed: 'completed',
+  cancelled: 'cancelled',
 } as const;

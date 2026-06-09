@@ -356,7 +356,7 @@ export const ListReservationsResponseItem = zod.object({
   "reservation_date": zod.string(),
   "reservation_time": zod.string(),
   "guest_count": zod.number(),
-  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "status": zod.enum(['pending', 'confirmed', 'seated', 'completed', 'cancelled']),
   "notes": zod.string().nullish(),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()
@@ -393,7 +393,7 @@ export const GetReservationResponse = zod.object({
   "reservation_date": zod.string(),
   "reservation_time": zod.string(),
   "guest_count": zod.number(),
-  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "status": zod.enum(['pending', 'confirmed', 'seated', 'completed', 'cancelled']),
   "notes": zod.string().nullish(),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()
@@ -408,7 +408,7 @@ export const UpdateReservationParams = zod.object({
 })
 
 export const UpdateReservationBody = zod.object({
-  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']).optional(),
+  "status": zod.enum(['pending', 'confirmed', 'seated', 'completed', 'cancelled']).optional(),
   "notes": zod.string().nullish()
 })
 
@@ -419,7 +419,7 @@ export const UpdateReservationResponse = zod.object({
   "reservation_date": zod.string(),
   "reservation_time": zod.string(),
   "guest_count": zod.number(),
-  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "status": zod.enum(['pending', 'confirmed', 'seated', 'completed', 'cancelled']),
   "notes": zod.string().nullish(),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()

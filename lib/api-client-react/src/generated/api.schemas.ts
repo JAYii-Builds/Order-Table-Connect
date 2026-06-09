@@ -295,8 +295,9 @@ export type ReservationStatus = typeof ReservationStatus[keyof typeof Reservatio
 export const ReservationStatus = {
   pending: 'pending',
   confirmed: 'confirmed',
-  cancelled: 'cancelled',
+  seated: 'seated',
   completed: 'completed',
+  cancelled: 'cancelled',
 } as const;
 
 export interface Reservation {
@@ -330,8 +331,9 @@ export type UpdateReservationInputStatus = typeof UpdateReservationInputStatus[k
 export const UpdateReservationInputStatus = {
   pending: 'pending',
   confirmed: 'confirmed',
-  cancelled: 'cancelled',
+  seated: 'seated',
   completed: 'completed',
+  cancelled: 'cancelled',
 } as const;
 
 export interface UpdateReservationInput {

@@ -12,6 +12,7 @@ export type UpdateReservationInputStatus = typeof UpdateReservationInputStatus[k
 export const UpdateReservationInputStatus = {
   pending: 'pending',
   confirmed: 'confirmed',
-  cancelled: 'cancelled',
+  seated: 'seated',
   completed: 'completed',
+  cancelled: 'cancelled',
 } as const;

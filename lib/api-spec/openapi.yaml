@@ -1069,7 +1069,7 @@ components:
           type: integer
         status:
           type: string
-          enum: [pending, confirmed, cancelled, completed]
+          enum: [pending, confirmed, seated, completed, cancelled]
         notes:
           type: ["string", "null"]
         created_at:
@@ -1113,6 +1113,6 @@ components:
       properties:
         status:
           type: string
-          enum: [pending, confirmed, cancelled, completed]
+          enum: [pending, confirmed, seated, completed, cancelled]
         notes:
           type: ["string", "null"]

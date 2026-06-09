@@ -1,0 +1,13 @@
+[build]
+  command = "pnpm --filter @workspace/restaurant-app run build"
+  publish = "artifacts/restaurant-app/dist/public"
+
+[build.environment]
+  NODE_VERSION = "24"
+  PNPM_VERSION = "10"
+
+# SPA fallback — all routes served by index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

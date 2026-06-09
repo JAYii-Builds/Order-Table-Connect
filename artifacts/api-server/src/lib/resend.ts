@@ -2,13 +2,10 @@ import { Resend } from "resend";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-if (!RESEND_API_KEY) {
-  throw new Error("RESEND_API_KEY must be set");
-}
-
-export const resend = new Resend(RESEND_API_KEY);
+export const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 export async function sendWelcomeEmail(to: string, fullName: string): Promise<void> {
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: "Restaurant App <onboarding@resend.dev>",

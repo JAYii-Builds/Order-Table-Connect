@@ -87,7 +87,7 @@ task = "workflow.run"
 args = "artifacts/mockup-sandbox: Component Preview Server"
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 
 [postMerge]

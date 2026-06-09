@@ -4,11 +4,11 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-const rawUrl = process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL;
+const rawUrl = process.env.DATABASE_URL;
 
 if (!rawUrl) {
   throw new Error(
-    "No database URL found. Set SUPABASE_DB_URL or DATABASE_URL.",
+    "No database URL found. Set DATABASE_URL.",
   );
 }
 
@@ -19,8 +19,7 @@ function parseDbUrl(url: string): pg.PoolConfig {
   }
   const [, user, password, host, portStr, database] = m;
   const port = parseInt(portStr, 10);
-  const ssl = host.includes("supabase.co") ? { rejectUnauthorized: false } : undefined;
-  return { user, password, host, port, database, ssl };
+  return { user, password, host, port, database };
 }
 
 export const pool = new Pool(parseDbUrl(rawUrl));

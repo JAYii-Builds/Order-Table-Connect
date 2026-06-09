@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "c44sJQbMzmM65shxGSPho"
+uri = "file://README.md"
+type = "text"
+title = "TableServe README"

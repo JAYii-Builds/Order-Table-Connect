@@ -6,8 +6,10 @@ import {
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { StatCard } from "@/components/stat-card";
 import { ActivityFeed } from "@/components/activity-feed";
+import { useRealtime } from "@/hooks/use-realtime";
 
 export default function ManagerDashboard() {
+  useRealtime();
   const { data, isLoading } = useGetManagerDashboard({
     query: { queryKey: getGetManagerDashboardQueryKey() },
   });

@@ -2,6 +2,7 @@ import { useListOrders, type Order } from "@workspace/api-client-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Loader2, ClipboardList, ChevronDown, ChevronUp, UtensilsCrossed } from "lucide-react";
 import { useState } from "react";
+import { useRealtime } from "@/hooks/use-realtime";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-yellow-500/15 text-yellow-400",
@@ -86,6 +87,7 @@ function OrderCard({ order }: { order: Order }) {
 }
 
 export default function CustomerOrdersPage() {
+  useRealtime();
   const { data: orders = [], isLoading } = useListOrders();
 
   return (

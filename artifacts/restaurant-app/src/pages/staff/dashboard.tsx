@@ -6,8 +6,10 @@ import {
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { StatCard } from "@/components/stat-card";
 import { ActivityFeed } from "@/components/activity-feed";
+import { useRealtime } from "@/hooks/use-realtime";
 
 export default function StaffDashboard() {
+  useRealtime();
   const { data, isLoading } = useGetStaffDashboard({
     query: { queryKey: getGetStaffDashboardQueryKey() },
   });

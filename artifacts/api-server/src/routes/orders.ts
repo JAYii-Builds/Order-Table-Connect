@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db, ordersTable, orderItemsTable, menuItemsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, menuItemsTable, walkInCustomersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { broadcast } from "../lib/sse";
 
@@ -32,6 +32,8 @@ function serializeOrder(order: typeof ordersTable.$inferSelect, items: ItemRow[]
     id: order.id,
     customer_id: order.customer_id,
     status: order.status,
+    order_type: order.order_type,
+    walk_in_customer_id: order.walk_in_customer_id ?? null,
     total_amount: parseFloat(order.total_amount),
     notes: order.notes ?? null,
     created_at: order.created_at.toISOString(),
@@ -234,6 +236,113 @@ router.patch(
       const serialized = serializeOrder(updated, items);
       res.json(serialized);
       broadcast({ type: "order:updated", payload: { orderId: id, status: updated.status } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  "/pos/orders",
+  requireAuth,
+  requireRole("staff", "manager", "owner", "admin"),
+  async (req, res, next): Promise<void> => {
+    try {
+      const staff = req.user!;
+      const { walk_in_customer_id, items, notes } = req.body as {
+        walk_in_customer_id?: string;
+        items?: { menu_item_id: string; quantity: number }[];
+        notes?: string;
+      };
+
+      if (!walk_in_customer_id) {
+        res.status(400).json({ error: "walk_in_customer_id is required" });
+        return;
+      }
+
+      const [walkIn] = await db
+        .select()
+        .from(walkInCustomersTable)
+        .where(eq(walkInCustomersTable.id, walk_in_customer_id));
+
+      if (!walkIn) {
+        res.status(400).json({ error: "Walk-in customer not found" });
+        return;
+      }
+
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({ error: "Order must have at least one item" });
+        return;
+      }
+
+      const menuItemIds = items.map((i) => i.menu_item_id);
+      const menuItems = await db
+        .select()
+        .from(menuItemsTable)
+        .where(inArray(menuItemsTable.id, menuItemIds));
+
+      for (const item of items) {
+        const mi = menuItems.find((m) => m.id === item.menu_item_id);
+        if (!mi) {
+          res.status(400).json({ error: `Menu item not found: ${item.menu_item_id}` });
+          return;
+        }
+        if (!mi.is_available) {
+          res.status(400).json({ error: `"${mi.name}" is currently unavailable` });
+          return;
+        }
+        if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+          res.status(400).json({ error: "Quantity must be at least 1" });
+          return;
+        }
+      }
+
+      const total = items.reduce((sum, item) => {
+        const mi = menuItems.find((m) => m.id === item.menu_item_id)!;
+        return sum + Number(mi.price) * item.quantity;
+      }, 0);
+
+      const orderId = randomUUID();
+
+      const [order] = await db
+        .insert(ordersTable)
+        .values({
+          id: orderId,
+          customer_id: staff.userId,
+          status: "pending",
+          order_type: "walk_in",
+          walk_in_customer_id,
+          total_amount: total.toFixed(2),
+          notes: notes ?? null,
+        })
+        .returning();
+
+      const orderItemValues = items.map((item) => {
+        const mi = menuItems.find((m) => m.id === item.menu_item_id)!;
+        const unitPrice = Number(mi.price);
+        return {
+          id: randomUUID(),
+          order_id: orderId,
+          menu_item_id: item.menu_item_id,
+          quantity: item.quantity,
+          unit_price: unitPrice.toFixed(2),
+          subtotal: (unitPrice * item.quantity).toFixed(2),
+        };
+      });
+
+      const insertedItems = await db
+        .insert(orderItemsTable)
+        .values(orderItemValues)
+        .returning();
+
+      const enrichedItems: ItemRow[] = insertedItems.map((oi) => ({
+        ...oi,
+        menu_item_name: menuItems.find((m) => m.id === oi.menu_item_id)?.name ?? "",
+      }));
+
+      const serialized = serializeOrder(order, enrichedItems);
+      res.status(201).json(serialized);
+      broadcast({ type: "order:created", payload: { orderId, customerId: staff.userId } });
     } catch (err) {
       next(err);
     }

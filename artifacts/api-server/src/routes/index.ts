@@ -7,6 +7,7 @@ import ordersRouter from "./orders";
 import reservationsRouter from "./reservations";
 import dashboardRouter from "./dashboard";
 import eventsRouter from "./events";
+import walkInsRouter from "./walk-ins";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(ordersRouter);
 router.use(reservationsRouter);
 router.use(dashboardRouter);
 router.use(eventsRouter);
+router.use(walkInsRouter);
 
 export default router;

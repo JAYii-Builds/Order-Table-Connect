@@ -19,7 +19,6 @@ import {
   useListMenuItems,
   getListMenuItemsQueryKey,
   useCreateOrder,
-  useUpdateOrderStatus,
   getListOrdersQueryKey,
   type MenuItem,
 } from "@workspace/api-client-react";
@@ -166,7 +165,6 @@ export default function StaffWalkinPage() {
   );
 
   const createOrderMutation = useCreateOrder();
-  const updateStatusMutation = useUpdateOrderStatus();
 
   const filteredItems = menuItems
     .filter((item) => activeCategory === "all" || item.category === activeCategory)
@@ -220,26 +218,8 @@ export default function StaffWalkinPage() {
       },
       {
         onSuccess: (order) => {
-          console.log("[walk-in] POST /api/orders success:", order.id, "status:", order.status);
-          updateStatusMutation.mutate(
-            { id: order.id, data: { status: "confirmed" } },
-            {
-              onSuccess: (confirmed) => {
-                console.log("[walk-in] PATCH status success:", confirmed.id, "status:", confirmed.status);
-                queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-                setPlacedOrder({ id: order.id, table: tableNumber, guests: guestCount });
-              },
-              onError: (err) => {
-                console.error("[walk-in] PATCH status FAILED:", err);
-                // Still show success — order is in DB, kitchen staff can confirm manually
-                queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-                setPlacedOrder({ id: order.id, table: tableNumber, guests: guestCount });
-              },
-            }
-          );
-        },
-        onError: (err) => {
-          console.error("[walk-in] POST /api/orders FAILED:", err);
+          queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+          setPlacedOrder({ id: order.id, table: tableNumber, guests: guestCount });
         },
       }
     );

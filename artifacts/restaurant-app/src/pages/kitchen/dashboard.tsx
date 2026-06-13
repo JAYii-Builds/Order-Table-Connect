@@ -137,8 +137,6 @@ export default function KitchenDashboard() {
     query: { queryKey: getListOrdersQueryKey() },
   });
 
-  console.log("[KDS] GET /api/orders response:", orders.map((o) => ({ id: o.id.slice(0, 8), status: o.status })));
-
   const kitchenOrders = orders
     .filter((o) => KITCHEN_STATUSES.includes(o.status as KitchenStatus))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());

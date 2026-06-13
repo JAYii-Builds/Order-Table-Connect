@@ -453,10 +453,14 @@ export default function POSPage() {
     (c) => c.value === "all" || menuItems.some((m) => m.category === c.value)
   );
 
+  const isStaffOrder = (o: Order) =>
+    parseWalkinInfo(o.notes) !== null || o.customer_id === user?.id;
+
   const payableOrders = useMemo(
     () =>
       allOrders
         .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
+        .filter((o) => isStaffOrder(o))
         .filter(
           (o) =>
             orderStatusFilter === "all" || o.status === orderStatusFilter
@@ -471,7 +475,23 @@ export default function POSPage() {
           const priority = ["ready", "preparing", "confirmed", "pending"];
           return priority.indexOf(a.status) - priority.indexOf(b.status);
         }),
-    [allOrders, orderStatusFilter, orderSearch]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allOrders, orderStatusFilter, orderSearch, user?.id]
+  );
+
+  const onlineOrders = useMemo(
+    () =>
+      allOrders
+        .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
+        .filter((o) => !isStaffOrder(o))
+        .filter(
+          (o) =>
+            orderSearch.trim() === "" ||
+            o.id.toLowerCase().includes(orderSearch.toLowerCase()) ||
+            (o.notes ?? "").toLowerCase().includes(orderSearch.toLowerCase())
+        ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allOrders, orderSearch, user?.id]
   );
 
   // ─── Pricing ──────────────────────────────────────────────────
@@ -776,21 +796,65 @@ export default function POSPage() {
                   </div>
                 ))}
               </div>
-            ) : payableOrders.length === 0 ? (
+            ) : payableOrders.length === 0 && onlineOrders.length === 0 ? (
               <div className="text-center py-16">
                 <ShoppingBag className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
                 <p className="text-muted-foreground text-sm">No orders to charge.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {payableOrders.map((order) => (
-                  <ExistingOrderCard
-                    key={order.id}
-                    order={order}
-                    selected={selectedOrder?.id === order.id}
-                    onClick={() => selectExistingOrder(order)}
-                  />
-                ))}
+              <div className="space-y-4">
+                {payableOrders.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {payableOrders.map((order) => (
+                      <ExistingOrderCard
+                        key={order.id}
+                        order={order}
+                        selected={selectedOrder?.id === order.id}
+                        onClick={() => selectExistingOrder(order)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {onlineOrders.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Smartphone className="h-3 w-3" /> Online Orders — Payment handled separately
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {onlineOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="bg-background border border-border rounded-xl p-4 opacity-60 cursor-not-allowed"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <p className="font-mono text-xs text-muted-foreground">#{order.id.slice(0, 8).toUpperCase()}</p>
+                              <p className="font-bold text-foreground text-sm mt-0.5">₱{order.total_amount.toFixed(2)}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] ?? ""}`}>
+                                {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold border bg-muted text-muted-foreground border-border">
+                                Online Payment Only
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-0.5">
+                            {order.items.slice(0, 3).map((item) => (
+                              <p key={item.id} className="text-xs text-muted-foreground">
+                                {item.menu_item_name} × {item.quantity}
+                              </p>
+                            ))}
+                            {order.items.length > 3 && (
+                              <p className="text-xs text-muted-foreground/60">+{order.items.length - 3} more</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

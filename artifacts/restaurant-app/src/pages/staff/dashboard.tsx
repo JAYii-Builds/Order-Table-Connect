@@ -9,7 +9,9 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  UserPlus,
 } from "lucide-react";
+import { parseWalkinInfo } from "@/lib/walkin-utils";
 import {
   useGetStaffDashboard,
   getGetStaffDashboardQueryKey,
@@ -140,12 +142,23 @@ function OrderCard({ order }: { order: Order }) {
     );
   }
 
+  const walkin = parseWalkinInfo(order.notes);
+
   return (
     <div className="bg-background border border-border rounded-xl p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-mono text-xs text-muted-foreground">#{order.id.slice(0, 8).toUpperCase()}</p>
           <p className="font-semibold text-foreground text-sm mt-0.5">₱{order.total_amount.toFixed(2)}</p>
+          {walkin && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-chart-3/15 text-chart-3 border border-chart-3/20">
+                <UserPlus className="h-2.5 w-2.5" />
+                Walk-in
+              </span>
+              <span className="text-xs text-muted-foreground">T{walkin.table} · {walkin.guests} {walkin.guests === 1 ? "guest" : "guests"}</span>
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] ?? ""}`}>

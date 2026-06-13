@@ -15,6 +15,8 @@ import {
   ShoppingCart,
   CalendarDays,
   ClipboardList,
+  MonitorSmartphone,
+  UserPlus,
 } from "lucide-react";
 
 interface NavItem {
@@ -55,21 +57,25 @@ export function DashboardLayout({
       { label: "Reservations", href: "/customer/reservations", icon: CalendarDays },
     ],
     staff: [
-      { label: "Dashboard", href: "/staff/dashboard", icon: LayoutDashboard },
+      { label: "Dashboard",    href: "/staff/dashboard", icon: LayoutDashboard },
+      { label: "Walk-in Order", href: "/staff/walkin",   icon: UserPlus },
+      { label: "POS",          href: "/pos",             icon: MonitorSmartphone },
     ],
     kitchen: [
       { label: "Dashboard", href: "/kitchen/dashboard", icon: LayoutDashboard },
     ],
     manager: [
       { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
-      { label: "Menu", href: "/manager/menu", icon: ShoppingBag },
+      { label: "Menu",      href: "/manager/menu",      icon: ShoppingBag },
+      { label: "POS",       href: "/pos",               icon: MonitorSmartphone },
     ],
     owner: [
       { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
     ],
     admin: [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-      { label: "Users", href: "/admin/users", icon: Users },
+      { label: "Users",     href: "/admin/users",     icon: Users },
+      { label: "POS",       href: "/pos",             icon: MonitorSmartphone },
     ],
   };
 

@@ -600,8 +600,10 @@ export default function POSPage() {
     };
 
     if (selectedOrder) {
+      // If kitchen is done, deliver. Otherwise confirm so kitchen can start preparing.
+      const nextStatus = selectedOrder.status === "ready" ? "delivered" : "confirmed";
       updateStatusMutation.mutate(
-        { id: selectedOrder.id, data: { status: "delivered" } },
+        { id: selectedOrder.id, data: { status: nextStatus } },
         { onSuccess: () => finalizeReceipt(selectedOrder.id) }
       );
     } else {
@@ -618,8 +620,9 @@ export default function POSPage() {
         },
         {
           onSuccess: (order) => {
+            // Payment taken — confirm so kitchen sees it immediately.
             updateStatusMutation.mutate(
-              { id: order.id, data: { status: "delivered" } },
+              { id: order.id, data: { status: "confirmed" } },
               { onSuccess: () => finalizeReceipt(order.id) }
             );
           },

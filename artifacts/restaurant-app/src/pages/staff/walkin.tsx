@@ -19,6 +19,7 @@ import {
   useListMenuItems,
   getListMenuItemsQueryKey,
   useCreateOrder,
+  useUpdateOrderStatus,
   getListOrdersQueryKey,
   type MenuItem,
 } from "@workspace/api-client-react";
@@ -165,6 +166,7 @@ export default function StaffWalkinPage() {
   );
 
   const createOrderMutation = useCreateOrder();
+  const updateStatusMutation = useUpdateOrderStatus();
 
   const filteredItems = menuItems
     .filter((item) => activeCategory === "all" || item.category === activeCategory)
@@ -218,8 +220,16 @@ export default function StaffWalkinPage() {
       },
       {
         onSuccess: (order) => {
-          queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-          setPlacedOrder({ id: order.id, table: tableNumber, guests: guestCount });
+          // Auto-confirm so the order appears in the KDS immediately.
+          updateStatusMutation.mutate(
+            { id: order.id, data: { status: "confirmed" } },
+            {
+              onSettled: () => {
+                queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+                setPlacedOrder({ id: order.id, table: tableNumber, guests: guestCount });
+              },
+            }
+          );
         },
       }
     );

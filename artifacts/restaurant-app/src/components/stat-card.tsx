@@ -7,6 +7,8 @@ interface StatCardProps {
   description?: string;
   colorClass?: string;
   testId?: string;
+  badge?: string;
+  badgeClass?: string;
 }
 
 export function StatCard({
@@ -16,6 +18,8 @@ export function StatCard({
   description,
   colorClass = "bg-primary/10 text-primary",
   testId,
+  badge,
+  badgeClass = "bg-chart-3/15 text-chart-3",
 }: StatCardProps) {
   return (
     <div
@@ -26,6 +30,11 @@ export function StatCard({
         <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${colorClass}`}>
           <Icon className="h-5 w-5" />
         </div>
+        {badge && (
+          <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${badgeClass}`}>
+            {badge}
+          </span>
+        )}
       </div>
       <div className="text-2xl font-bold text-foreground mb-0.5" data-testid={testId ? `${testId}-value` : undefined}>
         {value}

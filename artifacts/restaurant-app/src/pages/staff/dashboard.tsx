@@ -299,6 +299,9 @@ export default function StaffDashboard() {
     .filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status as OrderStatus))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
+  const activeWalkinCount = activeOrders.filter((o) => parseWalkinInfo(o.notes) !== null).length;
+  const activeRegularCount = activeOrders.length - activeWalkinCount;
+
   const todaysReservations = reservations
     .filter((r) => r.reservation_date === today)
     .sort((a, b) => a.reservation_time.localeCompare(b.reservation_time));
@@ -338,6 +341,15 @@ export default function StaffDashboard() {
               icon={ShoppingBag}
               colorClass="bg-chart-1/15 text-chart-1"
               testId="stat-pending-orders"
+              badge={activeWalkinCount > 0 ? `${activeWalkinCount} walk-in` : undefined}
+              badgeClass="bg-chart-3/15 text-chart-3"
+              description={
+                activeOrders.length === 0
+                  ? "No active orders"
+                  : activeWalkinCount > 0
+                  ? `${activeWalkinCount} walk-in · ${activeRegularCount} regular`
+                  : `${activeRegularCount} regular`
+              }
             />
             <StatCard
               title="Today's Reservations"

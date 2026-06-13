@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { count, eq, and, gt, gte, sum, sql, ne } from "drizzle-orm";
+import { count, eq, and, gt, gte, sum, sql, ne, inArray } from "drizzle-orm";
 import { db, usersTable, sessionsTable, ordersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 
@@ -56,11 +56,32 @@ router.get(
   requireAuth,
   requireRole("kitchen_staff"),
   async (req, res): Promise<void> => {
+    const start = todayStart();
+
+    const [queueRows, completedRow, avgRow] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(ordersTable)
+        .where(inArray(ordersTable.status, ["confirmed", "preparing"])),
+
+      db
+        .select({ count: count() })
+        .from(ordersTable)
+        .where(and(gte(ordersTable.created_at, start), eq(ordersTable.status, "ready"))),
+
+      db
+        .select({
+          avg_minutes: sql<number>`COALESCE(AVG(EXTRACT(EPOCH FROM (${ordersTable.updated_at} - ${ordersTable.created_at})) / 60), 0)`,
+        })
+        .from(ordersTable)
+        .where(and(gte(ordersTable.created_at, start), eq(ordersTable.status, "ready"))),
+    ]);
+
     res.json({
       role: "kitchen_staff",
-      orders_in_queue: 0,
-      orders_completed_today: 0,
-      avg_prep_time_minutes: 0,
+      orders_in_queue: Number(queueRows[0]?.count ?? 0),
+      orders_completed_today: Number(completedRow[0]?.count ?? 0),
+      avg_prep_time_minutes: Math.round(Number(avgRow[0]?.avg_minutes ?? 0) * 10) / 10,
       recent_activity: mockActivity("kitchen staff"),
     });
   }

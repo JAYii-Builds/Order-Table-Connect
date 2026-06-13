@@ -1066,12 +1066,21 @@ export default function POSPage() {
                     <span className="text-muted-foreground font-medium">Subtotal</span>
                     <span className="font-bold text-foreground">₱{subtotal.toFixed(2)}</span>
                   </div>
-                  <button
-                    onClick={() => setPaymentStep("payment")}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
-                  >
-                    <Receipt className="h-4 w-4" /> Proceed to Payment
-                  </button>
+                  {(!selectedOrder || selectedOrder.status === "pending") ? (
+                    <button
+                      onClick={() => setPaymentStep("payment")}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+                    >
+                      <Receipt className="h-4 w-4" /> Proceed to Payment
+                    </button>
+                  ) : (
+                    <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-border bg-muted/40 text-sm font-semibold text-muted-foreground">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[selectedOrder.status] ?? ""}`}>
+                        {ORDER_STATUS_LABELS[selectedOrder.status] ?? selectedOrder.status}
+                      </span>
+                      Already paid — no further action needed
+                    </div>
+                  )}
                 </div>
               )}
             </>

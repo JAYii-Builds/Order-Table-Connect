@@ -17,8 +17,6 @@ import CustomerCheckoutPage from "@/pages/customer/checkout";
 import CustomerOrdersPage from "@/pages/customer/orders";
 import CustomerReservationsPage from "@/pages/customer/reservations";
 import StaffDashboard from "@/pages/staff/dashboard";
-import StaffPosPage from "@/pages/staff/pos";
-import StaffOrdersPage from "@/pages/staff/orders";
 import KitchenDashboard from "@/pages/kitchen/dashboard";
 import ManagerDashboard from "@/pages/manager/dashboard";
 import ManagerMenuPage from "@/pages/manager/menu";
@@ -74,16 +72,6 @@ function Router() {
       <Route path="/staff/dashboard">
         <ProtectedRoute allowedRoles={["staff"]}>
           <StaffDashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/staff/pos">
-        <ProtectedRoute allowedRoles={["staff"]}>
-          <StaffPosPage />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/staff/orders">
-        <ProtectedRoute allowedRoles={["staff"]}>
-          <StaffOrdersPage />
         </ProtectedRoute>
       </Route>
 

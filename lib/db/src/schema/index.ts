@@ -4,3 +4,4 @@ export * from "./menu-items";
 export * from "./orders";
 export * from "./order-items";
 export * from "./reservations";
+export * from "./walk-ins";

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { GetUserParams, UpdateUserBody, UpdateUserParams } from "@workspace/api-zod";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
@@ -115,6 +116,13 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
   if (!updated) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  if (updateData.role) {
+    logAudit(req.user!.userId, req.user!.email, "user.role_changed", `Changed ${updated.email}'s role to ${updateData.role}`);
+  }
+  if (updateData.is_active !== undefined) {
+    logAudit(req.user!.userId, req.user!.email, updateData.is_active ? "user.reactivated" : "user.deactivated", `${updateData.is_active ? "Reactivated" : "Deactivated"} account ${updated.email}`);
   }
 
   res.json(serializeUser(updated));

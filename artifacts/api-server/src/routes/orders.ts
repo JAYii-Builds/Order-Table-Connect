@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db, ordersTable, orderItemsTable, menuItemsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, menuItemsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { broadcast } from "../lib/sse";
+import { sendOrderConfirmedEmail } from "../lib/resend";
+import { sendSMS } from "../lib/sms";
 
 const router: IRouter = Router();
 
@@ -234,6 +236,18 @@ router.patch(
       const serialized = serializeOrder(updated, items);
       res.json(serialized);
       broadcast({ type: "order:updated", payload: { orderId: id, status: updated.status } });
+
+      if (status === "confirmed") {
+        const [customer] = await db
+          .select({ email: usersTable.email, full_name: usersTable.full_name, phone: usersTable.phone })
+          .from(usersTable)
+          .where(eq(usersTable.id, order.customer_id))
+          .limit(1);
+        if (customer) {
+          sendOrderConfirmedEmail(customer.email, customer.full_name, id, parseFloat(order.total_amount)).catch(() => {});
+          if (customer.phone) sendSMS(customer.phone, `Hi ${customer.full_name}, your TableServe order #${id.slice(0, 8).toUpperCase()} has been confirmed! Total: ₱${parseFloat(order.total_amount).toFixed(2)}`).catch(() => {});
+        }
+      }
     } catch (err) {
       next(err);
     }

@@ -3,6 +3,7 @@ import { eq, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, menuItemsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
@@ -104,6 +105,7 @@ router.post(
       })
       .returning();
 
+    logAudit(req.user!.userId, req.user!.email, "menu.created", `Created menu item "${name.trim()}" (₱${price.toFixed(2)})`);
     res.status(201).json(serializeItem(created));
   }
 );
@@ -161,6 +163,7 @@ router.patch(
       return;
     }
 
+    logAudit(req.user!.userId, req.user!.email, "menu.updated", `Updated menu item "${updated.name}"`);
     res.json(serializeItem(updated));
   }
 );
@@ -182,6 +185,7 @@ router.delete(
       return;
     }
 
+    logAudit(req.user!.userId, req.user!.email, "menu.deleted", `Deleted menu item "${deleted.name}"`);
     res.json({ message: "Menu item deleted" });
   }
 );

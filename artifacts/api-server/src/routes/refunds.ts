@@ -1,9 +1,12 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db, refundsTable, ordersTable } from "@workspace/db";
+import { db, refundsTable, ordersTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { broadcast } from "../lib/sse";
+import { logAudit } from "../lib/audit";
+import { sendRefundApprovedEmail, sendRefundRejectedEmail } from "../lib/resend";
+import { sendSMS } from "../lib/sms";
 
 const router: IRouter = Router();
 
@@ -187,6 +190,32 @@ router.patch(
 
       res.json(serializeRefund(updated));
       broadcast({ type: "refund:updated", payload: { refundId: id, status: nextStatus } });
+
+      const actor = req.user!;
+      logAudit(
+        actor.userId,
+        actor.email,
+        nextStatus === "rejected" ? "refund.rejected" : nextStatus === "manager_approved" ? "refund.escalated" : "refund.approved",
+        `Refund #${id.slice(0, 8)} for ₱${Number(refund.amount).toFixed(2)} — status: ${nextStatus}`,
+      );
+
+      if (nextStatus === "completed" || nextStatus === "rejected") {
+        const [customer] = await db
+          .select({ email: usersTable.email, full_name: usersTable.full_name, phone: usersTable.phone })
+          .from(usersTable)
+          .where(eq(usersTable.id, refund.customer_id))
+          .limit(1);
+        if (customer) {
+          const amt = Number(refund.amount);
+          if (nextStatus === "completed") {
+            sendRefundApprovedEmail(customer.email, customer.full_name, amt).catch(() => {});
+            if (customer.phone) sendSMS(customer.phone, `Hi ${customer.full_name}, your TableServe refund of ₱${amt.toFixed(2)} has been approved!`).catch(() => {});
+          } else {
+            sendRefundRejectedEmail(customer.email, customer.full_name, amt).catch(() => {});
+            if (customer.phone) sendSMS(customer.phone, `Hi ${customer.full_name}, your TableServe refund request of ₱${amt.toFixed(2)} was not approved.`).catch(() => {});
+          }
+        }
+      }
     } catch (err) {
       next(err);
     }

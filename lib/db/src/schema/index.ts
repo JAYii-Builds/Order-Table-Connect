@@ -7,3 +7,5 @@ export * from "./reservations";
 export * from "./walk-ins";
 export * from "./table-reservations";
 export * from "./refunds";
+export * from "./audit-logs";
+export * from "./feedback";

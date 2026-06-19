@@ -1,10 +1,12 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { eq, desc, and, ne } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db, tableReservationsTable } from "@workspace/db";
+import { db, tableReservationsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { verifyToken } from "../lib/jwt";
 import { broadcast } from "../lib/sse";
+import { sendReservationConfirmedEmail } from "../lib/resend";
+import { sendSMS } from "../lib/sms";
 
 const router: IRouter = Router();
 
@@ -208,6 +210,27 @@ router.patch(
         type: "table-reservation:updated",
         payload: { reservationId: id, status: updated.status },
       });
+
+      if (status === "confirmed") {
+        // Send notification to account holder (if logged in) or try contact_info as email
+        const notifyByAccount = updated.customer_id
+          ? await db
+              .select({ email: usersTable.email, phone: usersTable.phone })
+              .from(usersTable)
+              .where(eq(usersTable.id, updated.customer_id))
+              .limit(1)
+              .then((r) => r[0])
+          : null;
+
+        const emailTo = notifyByAccount?.email ?? (updated.contact_info.includes("@") ? updated.contact_info : null);
+        if (emailTo) {
+          sendReservationConfirmedEmail(emailTo, updated.customer_name, updated.reservation_date, updated.reservation_time, updated.party_size).catch(() => {});
+        }
+        const phone = notifyByAccount?.phone ?? (!updated.contact_info.includes("@") ? updated.contact_info : null);
+        if (phone) {
+          sendSMS(phone, `Hi ${updated.customer_name}, your TableServe table for ${updated.party_size} on ${updated.reservation_date} at ${updated.reservation_time} is confirmed!`).catch(() => {});
+        }
+      }
     } catch (err) {
       next(err);
     }

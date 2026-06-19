@@ -8,11 +8,16 @@ const app: Express = express();
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN;
 
+// Support comma-separated list of allowed origins
+const originList = allowedOrigin
+  ? allowedOrigin.split(",").map((o) => o.trim()).filter(Boolean)
+  : null;
+
 app.use(
   cors(
-    allowedOrigin
+    originList
       ? {
-          origin: allowedOrigin,
+          origin: originList.length === 1 ? originList[0] : originList,
           credentials: true,
         }
       : undefined,

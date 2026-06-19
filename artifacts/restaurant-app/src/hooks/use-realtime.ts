@@ -36,12 +36,18 @@ export function useRealtime() {
       queryClient.invalidateQueries({ queryKey: ["table-reservations"] });
     }
 
+    function invalidateRefunds() {
+      queryClient.invalidateQueries({ queryKey: ["refunds"] });
+    }
+
     es.addEventListener("order:created", invalidateOrders);
     es.addEventListener("order:updated", invalidateOrders);
     es.addEventListener("reservation:created", invalidateReservations);
     es.addEventListener("reservation:updated", invalidateReservations);
     es.addEventListener("table-reservation:created", invalidateTableReservations);
     es.addEventListener("table-reservation:updated", invalidateTableReservations);
+    es.addEventListener("refund:created", invalidateRefunds);
+    es.addEventListener("refund:updated", invalidateRefunds);
 
     es.onerror = () => {};
 

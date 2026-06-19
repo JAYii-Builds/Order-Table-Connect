@@ -25,7 +25,13 @@ import PaymentReturnPage from "@/pages/customer/payment-return";
 import KitchenDashboard from "@/pages/kitchen/dashboard";
 import ManagerDashboard from "@/pages/manager/dashboard";
 import ManagerMenuPage from "@/pages/manager/menu";
+import ManagerSalesReportsPage from "@/pages/manager/sales-reports";
+import ManagerUsersPage from "@/pages/manager/users";
+import ManagerRefundsPage from "@/pages/manager/refunds";
+import ManagerFeedbackPage from "@/pages/manager/feedback";
 import OwnerDashboard from "@/pages/owner/dashboard";
+import OwnerSalesPage from "@/pages/owner/sales";
+import OwnerRefundsPage from "@/pages/owner/refunds";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsersPage from "@/pages/admin/users";
 
@@ -117,10 +123,40 @@ function Router() {
           <ManagerMenuPage />
         </ProtectedRoute>
       </Route>
+      <Route path="/manager/sales-reports">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerSalesReportsPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/manager/users">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerUsersPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/manager/refunds">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerRefundsPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/manager/feedback">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerFeedbackPage />
+        </ProtectedRoute>
+      </Route>
 
       <Route path="/owner/dashboard">
         <ProtectedRoute allowedRoles={["owner"]}>
           <OwnerDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/owner/sales">
+        <ProtectedRoute allowedRoles={["owner"]}>
+          <OwnerSalesPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/owner/refunds">
+        <ProtectedRoute allowedRoles={["owner"]}>
+          <OwnerRefundsPage />
         </ProtectedRoute>
       </Route>
 

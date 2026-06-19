@@ -10,6 +10,8 @@ import eventsRouter from "./events";
 import walkInsRouter from "./walk-ins";
 import tableReservationsRouter from "./table-reservations";
 import paymentsRouter from "./payments";
+import refundsRouter from "./refunds";
+import salesReportsRouter from "./sales-reports";
 
 const router: IRouter = Router();
 
@@ -24,5 +26,7 @@ router.use(eventsRouter);
 router.use(walkInsRouter);
 router.use(tableReservationsRouter);
 router.use(paymentsRouter);
+router.use(refundsRouter);
+router.use(salesReportsRouter);
 
 export default router;

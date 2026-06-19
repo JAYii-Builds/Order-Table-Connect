@@ -299,6 +299,7 @@ export default function StaffDashboard() {
     .filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status as OrderStatus))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
+  const readyOrders = activeOrders.filter((o) => o.status === "ready");
   const activeWalkinCount = activeOrders.filter((o) => parseWalkinInfo(o.notes) !== null).length;
   const activeRegularCount = activeOrders.length - activeWalkinCount;
 
@@ -365,6 +366,24 @@ export default function StaffDashboard() {
               colorClass="bg-chart-2/15 text-chart-2"
               testId="stat-active-tables"
             />
+          </div>
+        )}
+
+        {/* Ready-to-serve alert */}
+        {readyOrders.length > 0 && (
+          <div className="mb-6 p-4 rounded-xl border bg-chart-2/10 border-chart-2/30 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-chart-2 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-chart-2 text-sm">
+                {readyOrders.length} {readyOrders.length === 1 ? "order is" : "orders are"} ready to serve
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {readyOrders.map((o) => {
+                  const wi = parseWalkinInfo(o.notes);
+                  return wi ? `Table ${wi.table}` : `#${o.id.slice(0, 6).toUpperCase()}`;
+                }).join(" · ")}
+              </p>
+            </div>
           </div>
         )}
 

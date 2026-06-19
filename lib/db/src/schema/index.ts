@@ -5,3 +5,4 @@ export * from "./orders";
 export * from "./order-items";
 export * from "./reservations";
 export * from "./walk-ins";
+export * from "./table-reservations";

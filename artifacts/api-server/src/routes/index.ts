@@ -8,6 +8,8 @@ import reservationsRouter from "./reservations";
 import dashboardRouter from "./dashboard";
 import eventsRouter from "./events";
 import walkInsRouter from "./walk-ins";
+import tableReservationsRouter from "./table-reservations";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -20,5 +22,7 @@ router.use(reservationsRouter);
 router.use(dashboardRouter);
 router.use(eventsRouter);
 router.use(walkInsRouter);
+router.use(tableReservationsRouter);
+router.use(paymentsRouter);
 
 export default router;

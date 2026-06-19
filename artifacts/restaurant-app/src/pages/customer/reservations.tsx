@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { useRealtime } from "@/hooks/use-realtime";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
-import { useListOrders } from "@workspace/api-client-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
@@ -16,6 +14,7 @@ import {
   UtensilsCrossed,
   Phone,
   User,
+  Table2,
 } from "lucide-react";
 
 const TIME_SLOTS = [
@@ -41,6 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface TableReservation {
   id: string;
+  customer_id: string | null;
   customer_name: string;
   contact_info: string;
   party_size: number;
@@ -78,12 +78,15 @@ function ReservationCard({ reservation }: { reservation: TableReservation }) {
             {STATUS_LABELS[reservation.status] ?? reservation.status}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
+        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
           <Users className="h-3 w-3" />
           {reservation.party_size} guest{reservation.party_size !== 1 ? "s" : ""}
         </p>
         {reservation.table_id && (
-          <p className="text-xs text-muted-foreground mt-0.5">Table {reservation.table_id}</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+            <Table2 className="h-3 w-3" />
+            Table {reservation.table_id}
+          </p>
         )}
         {reservation.notes && (
           <p className="text-xs text-muted-foreground mt-1 italic">"{reservation.notes}"</p>
@@ -93,27 +96,13 @@ function ReservationCard({ reservation }: { reservation: TableReservation }) {
   );
 }
 
-const MY_RESERVATIONS_KEY = "tableserve_my_reservations";
-
-function loadStoredReservations(): TableReservation[] {
-  try {
-    const raw = localStorage.getItem(MY_RESERVATIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveReservation(r: TableReservation) {
-  const existing = loadStoredReservations();
-  localStorage.setItem(MY_RESERVATIONS_KEY, JSON.stringify([r, ...existing]));
-}
+const MY_RESERVATIONS_KEY = ["table-reservations", "my"] as const;
 
 export default function CustomerReservationsPage() {
   useRealtime();
-  const [location] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -124,13 +113,18 @@ export default function CustomerReservationsPage() {
   const [guests, setGuests] = useState(2);
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState<TableReservation | null>(null);
-  const [myReservations, setMyReservations] = useState<TableReservation[]>(loadStoredReservations);
 
   // Pre-fill name/contact when user data loads
   useEffect(() => {
     if (user?.full_name && !name) setName(user.full_name);
     if (user?.phone && !contact) setContact(user.phone);
   }, [user]);
+
+  // Fetch this customer's reservations from the DB (not localStorage)
+  const { data: myReservations = [], isLoading } = useQuery({
+    queryKey: MY_RESERVATIONS_KEY,
+    queryFn: () => customFetch<TableReservation[]>("/api/table-reservations/my"),
+  });
 
   const createReservation = useMutation({
     mutationFn: (data: object) =>
@@ -140,8 +134,7 @@ export default function CustomerReservationsPage() {
       }),
     onSuccess: (res) => {
       setSubmitted(res);
-      saveReservation(res);
-      setMyReservations(loadStoredReservations());
+      queryClient.invalidateQueries({ queryKey: MY_RESERVATIONS_KEY });
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Failed to create reservation.";
@@ -339,10 +332,14 @@ export default function CustomerReservationsPage() {
           )}
         </div>
 
-        {/* My Reservations (this session / device) */}
+        {/* My Reservations — fetched from DB by customer_id */}
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3">My Reservations</h2>
-          {myReservations.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : myReservations.length === 0 ? (
             <div className="text-center py-10 bg-card border border-card-border rounded-xl">
               <UtensilsCrossed className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
               <p className="text-muted-foreground text-sm">No reservations yet.</p>

@@ -1,8 +1,9 @@
-import { Router, type IRouter } from "express";
-import { eq, desc, and, gte, lte, ne } from "drizzle-orm";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { eq, desc, and, ne } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, tableReservationsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { verifyToken } from "../lib/jwt";
 import { broadcast } from "../lib/sse";
 
 const router: IRouter = Router();
@@ -12,6 +13,7 @@ type TableReservationStatus = "pending" | "confirmed" | "seated" | "cancelled" |
 function serializeTableReservation(r: typeof tableReservationsTable.$inferSelect) {
   return {
     id: r.id,
+    customer_id: r.customer_id ?? null,
     customer_name: r.customer_name,
     contact_info: r.contact_info,
     party_size: r.party_size,
@@ -25,8 +27,23 @@ function serializeTableReservation(r: typeof tableReservationsTable.$inferSelect
   };
 }
 
-// POST /table-reservations — public, no auth required
-router.post("/table-reservations", async (req, res, next): Promise<void> => {
+// Middleware that attaches user if a valid Bearer token is present, but doesn't
+// reject unauthenticated requests — allows the POST to be public while still
+// capturing the user ID for logged-in customers.
+function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      req.user = verifyToken(authHeader.slice(7));
+    } catch {
+      // invalid token — treat as unauthenticated guest
+    }
+  }
+  next();
+}
+
+// POST /table-reservations — public (guests) or authenticated (customers)
+router.post("/table-reservations", optionalAuth, async (req, res, next): Promise<void> => {
   try {
     const { customer_name, contact_info, party_size, reservation_date, reservation_time, notes } =
       req.body as {
@@ -50,7 +67,7 @@ router.post("/table-reservations", async (req, res, next): Promise<void> => {
       return;
     }
 
-    // Basic conflict check: same date/time already has 10+ reservations (demo limit)
+    // Slot capacity check (demo limit: 10 active reservations per slot)
     const sameSlotCount = await db
       .select()
       .from(tableReservationsTable)
@@ -68,10 +85,15 @@ router.post("/table-reservations", async (req, res, next): Promise<void> => {
       return;
     }
 
+    // Capture customer_id when request comes from a logged-in customer
+    const customerId =
+      req.user && req.user.role === "customer" ? req.user.userId : null;
+
     const [reservation] = await db
       .insert(tableReservationsTable)
       .values({
         id: randomUUID(),
+        customer_id: customerId,
         customer_name: customer_name.trim(),
         contact_info: contact_info.trim(),
         party_size,
@@ -90,7 +112,28 @@ router.post("/table-reservations", async (req, res, next): Promise<void> => {
   }
 });
 
-// GET /table-reservations — staff only
+// GET /table-reservations/my — customer sees their own reservations (by customer_id)
+router.get(
+  "/table-reservations/my",
+  requireAuth,
+  async (req, res, next): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+
+      const rows = await db
+        .select()
+        .from(tableReservationsTable)
+        .where(eq(tableReservationsTable.customer_id, userId))
+        .orderBy(desc(tableReservationsTable.created_at));
+
+      res.json(rows.map(serializeTableReservation));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /table-reservations — staff sees all reservations
 router.get(
   "/table-reservations",
   requireAuth,

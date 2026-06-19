@@ -19,6 +19,9 @@ import CustomerReservationsPage from "@/pages/customer/reservations";
 import StaffDashboard from "@/pages/staff/dashboard";
 import StaffWalkinPage from "@/pages/staff/walkin";
 import POSPage from "@/pages/staff/pos";
+import StaffReservationsPage from "@/pages/staff/reservations";
+import ReservePage from "@/pages/reserve";
+import PaymentReturnPage from "@/pages/customer/payment-return";
 import KitchenDashboard from "@/pages/kitchen/dashboard";
 import ManagerDashboard from "@/pages/manager/dashboard";
 import ManagerMenuPage from "@/pages/manager/menu";
@@ -39,6 +42,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/unauthorized" component={UnauthorizedPage} />
+      <Route path="/reserve" component={ReservePage} />
 
       <Route path="/customer/dashboard">
         <ProtectedRoute allowedRoles={["customer"]}>
@@ -70,6 +74,11 @@ function Router() {
           <CustomerReservationsPage />
         </ProtectedRoute>
       </Route>
+      <Route path="/customer/payment-return">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <PaymentReturnPage />
+        </ProtectedRoute>
+      </Route>
 
       <Route path="/staff/dashboard">
         <ProtectedRoute allowedRoles={["staff"]}>
@@ -79,6 +88,11 @@ function Router() {
       <Route path="/staff/walkin">
         <ProtectedRoute allowedRoles={["staff"]}>
           <StaffWalkinPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/staff/reservations">
+        <ProtectedRoute allowedRoles={["staff", "manager", "owner", "admin"]}>
+          <StaffReservationsPage />
         </ProtectedRoute>
       </Route>
       <Route path="/pos">

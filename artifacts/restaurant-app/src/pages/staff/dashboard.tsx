@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   XCircle,
   UserPlus,
+  Phone,
+  AlertCircle,
 } from "lucide-react";
 import { parseWalkinInfo } from "@/lib/walkin-utils";
 import {
@@ -21,13 +23,15 @@ import {
   useListReservations,
   getListReservationsQueryKey,
   useUpdateReservation,
+  customFetch,
   type Order,
   type Reservation,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { StatCard } from "@/components/stat-card";
 import { useRealtime } from "@/hooks/use-realtime";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Order queue types & config ──────────────────────────────────────────────
 
@@ -273,13 +277,141 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
   );
 }
 
-// ─── Missing React import ─────────────────────────────────────────────────────
+// ─── Table Reservation types ──────────────────────────────────────────────────
+
 import React from "react";
+
+interface TableReservation {
+  id: string;
+  customer_name: string;
+  contact_info: string;
+  party_size: number;
+  reservation_date: string;
+  reservation_time: string;
+  table_id: string | null;
+  status: "pending" | "confirmed" | "seated" | "cancelled" | "no_show";
+  notes: string | null;
+  created_at: string;
+}
+
+const TR_STATUS_STYLES: Record<string, string> = {
+  pending:   "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
+  confirmed: "bg-blue-500/15 text-blue-400 border-blue-500/20",
+  seated:    "bg-chart-3/15 text-chart-3 border-chart-3/20",
+  cancelled: "bg-destructive/15 text-destructive border-destructive/20",
+  no_show:   "bg-muted/60 text-muted-foreground border-border",
+};
+
+const TR_STATUS_LABELS: Record<string, string> = {
+  pending:   "Pending",
+  confirmed: "Confirmed",
+  seated:    "Seated",
+  cancelled: "Cancelled",
+  no_show:   "No Show",
+};
+
+type TRStatus = TableReservation["status"];
+
+const TR_NEXT: Partial<Record<TRStatus, { status: TRStatus; label: string; color: string }[]>> = {
+  pending:   [
+    { status: "confirmed", label: "Confirm",  color: "bg-blue-600 hover:bg-blue-500 text-white" },
+    { status: "cancelled", label: "Cancel",   color: "bg-destructive/80 hover:bg-destructive text-white" },
+  ],
+  confirmed: [
+    { status: "seated",    label: "Seat",     color: "bg-chart-3 hover:opacity-90 text-white" },
+    { status: "no_show",   label: "No Show",  color: "bg-muted hover:bg-muted/70 text-foreground" },
+  ],
+};
+
+const TABLE_RES_TODAY_KEY = (today: string) => ["table-reservations", today];
+
+function TableReservationCard({ reservation, onMutate }: { reservation: TableReservation; onMutate: () => void }) {
+  const { toast } = useToast();
+  const [pendingStatus, setPendingStatus] = React.useState<TRStatus | null>(null);
+  const actions = TR_NEXT[reservation.status] ?? [];
+
+  const mutation = useMutation({
+    mutationFn: (data: Partial<TableReservation>) =>
+      customFetch<TableReservation>(`/api/table-reservations/${reservation.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => { setPendingStatus(null); onMutate(); },
+    onError: (err: unknown) => {
+      setPendingStatus(null);
+      toast({ title: "Update failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
+    },
+  });
+
+  const isTerminal = reservation.status === "cancelled" || reservation.status === "no_show";
+
+  return (
+    <div className={`bg-background border rounded-xl p-4 flex flex-col gap-3 ${isTerminal ? "border-border opacity-60" : "border-border"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-mono text-xs text-muted-foreground">#{reservation.id.slice(0, 8).toUpperCase()}</p>
+          <p className="font-semibold text-foreground text-sm mt-0.5">{reservation.customer_name}</p>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${TR_STATUS_STYLES[reservation.status] ?? ""}`}>
+          {TR_STATUS_LABELS[reservation.status] ?? reservation.status}
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Phone className="h-3.5 w-3.5 shrink-0" />
+          <span>{reservation.contact_info}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Users className="h-3.5 w-3.5 shrink-0" />
+          <span>{reservation.party_size} {reservation.party_size === 1 ? "guest" : "guests"}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>{formatTime(reservation.reservation_time)}</span>
+          {reservation.table_id && (
+            <span className="ml-1 flex items-center gap-1">
+              <Table2 className="h-3 w-3" />
+              Table {reservation.table_id}
+            </span>
+          )}
+        </div>
+        {reservation.notes && (
+          <p className="text-xs text-muted-foreground italic">"{reservation.notes}"</p>
+        )}
+      </div>
+
+      {actions.length > 0 && (
+        <div className={`grid gap-2 ${actions.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {actions.map((action) => (
+            <button
+              key={action.status}
+              onClick={() => { setPendingStatus(action.status); mutation.mutate({ status: action.status }); }}
+              disabled={mutation.isPending}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 ${action.color}`}
+            >
+              {pendingStatus === action.status ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : action.status === "cancelled" ? (
+                <><XCircle className="h-3.5 w-3.5" />{action.label}</>
+              ) : action.status === "no_show" ? (
+                <><AlertCircle className="h-3.5 w-3.5" />{action.label}</>
+              ) : (
+                <>{action.label}<ChevronRight className="h-3.5 w-3.5" /></>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StaffDashboard() {
   useRealtime();
+  const queryClient = useQueryClient();
 
   const { data, isLoading: statsLoading } = useGetStaffDashboard({
     query: { queryKey: getGetStaffDashboardQueryKey() },
@@ -294,6 +426,15 @@ export default function StaffDashboard() {
   });
 
   const today = todayDateStr();
+
+  const { data: tableReservations = [], isLoading: trLoading } = useQuery({
+    queryKey: TABLE_RES_TODAY_KEY(today),
+    queryFn: () => customFetch<TableReservation[]>(`/api/table-reservations?date=${today}`),
+  });
+
+  function invalidateTableReservations() {
+    queryClient.invalidateQueries({ queryKey: TABLE_RES_TODAY_KEY(today) });
+  }
 
   const activeOrders = orders
     .filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status as OrderStatus))
@@ -310,6 +451,14 @@ export default function StaffDashboard() {
   const activeReservations = todaysReservations.filter(
     (r) => r.status !== "completed" && r.status !== "cancelled"
   );
+
+  const activeTRs = tableReservations
+    .filter((r) => r.status !== "cancelled" && r.status !== "no_show")
+    .sort((a, b) => a.reservation_time.localeCompare(b.reservation_time));
+  const terminalTRs = tableReservations.filter(
+    (r) => r.status === "cancelled" || r.status === "no_show"
+  );
+  const pendingTRCount = tableReservations.filter((r) => r.status === "pending").length;
 
   return (
     <DashboardLayout role="staff" roleLabel="Staff" roleColor="text-chart-2">
@@ -489,6 +638,60 @@ export default function StaffDashboard() {
                       .map((r) => (
                         <ReservationCard key={r.id} reservation={r} />
                       ))}
+                  </div>
+                </details>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Table Reservations (guest bookings) */}
+        <div className="bg-card border border-card-border rounded-xl p-6 mt-6">
+          <div className="flex items-center gap-2 mb-5">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold text-foreground text-sm">Today's Table Bookings</h2>
+            <span className="text-xs text-muted-foreground">(guest reservations)</span>
+            {pendingTRCount > 0 && (
+              <span className="ml-auto bg-yellow-500/15 text-yellow-400 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {pendingTRCount} pending
+              </span>
+            )}
+          </div>
+
+          {trLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {[1, 2].map((i) => (
+                <div key={i} className="bg-background border border-border rounded-xl p-4 animate-pulse space-y-3">
+                  <div className="h-4 w-28 bg-muted rounded" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                  <div className="h-8 w-full bg-muted rounded-lg" />
+                </div>
+              ))}
+            </div>
+          ) : tableReservations.length === 0 ? (
+            <div className="text-center py-8">
+              <CalendarDays className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">No guest bookings for today.</p>
+            </div>
+          ) : (
+            <>
+              {activeTRs.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                  {activeTRs.map((r) => (
+                    <TableReservationCard key={r.id} reservation={r} onMutate={invalidateTableReservations} />
+                  ))}
+                </div>
+              )}
+              {terminalTRs.length > 0 && (
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors py-1 list-none flex items-center gap-1.5">
+                    <ChevronRight className="h-3.5 w-3.5 group-open:rotate-90 transition-transform" />
+                    {terminalTRs.length} cancelled / no-show
+                  </summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+                    {terminalTRs.map((r) => (
+                      <TableReservationCard key={r.id} reservation={r} onMutate={invalidateTableReservations} />
+                    ))}
                   </div>
                 </details>
               )}

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useCart } from "@/contexts/cart-context";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useCreateOrder } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
+import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   UtensilsCrossed,
@@ -10,8 +12,11 @@ import {
   CalendarDays,
   ShoppingCart,
   ArrowLeft,
+  CreditCard,
+  Wallet,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/api-config";
 
 const MIN_RESERVATION_AMOUNT = 200;
 
@@ -20,17 +25,55 @@ interface PlacedOrder {
   total_amount: number;
 }
 
+interface PaymentLinkResponse {
+  order_id: string;
+  link_id: string;
+  checkout_url: string;
+}
+
 export default function CustomerCheckoutPage() {
   const { items, total, clearCart } = useCart();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [notes, setNotes] = useState("");
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"place_order" | "paymongo">("place_order");
 
   const createOrder = useCreateOrder();
 
+  const createPaymongoLink = useMutation({
+    mutationFn: (data: object) =>
+      customFetch<PaymentLinkResponse>("/api/payments/create-link", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (res) => {
+      clearCart();
+      // Redirect to PayMongo's hosted checkout
+      const returnUrl = `${getApiBaseUrl() ? window.location.origin : ""}/customer/payment-return?order_id=${res.order_id}&link_id=${res.link_id}`;
+      // Store return URL isn't needed — PayMongo uses success_url configured on the link
+      // For sandbox, we redirect directly and check status on return
+      window.location.href = res.checkout_url;
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to initiate payment. Please try again.";
+      toast({ title: "Payment failed", description: msg, variant: "destructive" });
+    },
+  });
+
   function handlePlaceOrder() {
     if (items.length === 0) return;
+
+    if (paymentMethod === "paymongo") {
+      createPaymongoLink.mutate({
+        items: items.map((ci) => ({
+          menu_item_id: ci.menuItem.id,
+          quantity: ci.quantity,
+        })),
+        notes: notes.trim() || null,
+      });
+      return;
+    }
 
     createOrder.mutate(
       {
@@ -117,6 +160,8 @@ export default function CustomerCheckoutPage() {
     );
   }
 
+  const isPending = createOrder.isPending || createPaymongoLink.isPending;
+
   return (
     <DashboardLayout role="customer" roleLabel="Customer" roleColor="text-chart-1">
       <div className="p-8 max-w-2xl mx-auto">
@@ -132,7 +177,7 @@ export default function CustomerCheckoutPage() {
             Checkout
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Review your order and place it.
+            Review your order and choose how to pay.
           </p>
         </div>
 
@@ -200,6 +245,46 @@ export default function CustomerCheckoutPage() {
               />
             </div>
 
+            {/* Payment method */}
+            <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-border bg-muted/40">
+                <h2 className="text-sm font-semibold text-foreground">Payment Method</h2>
+              </div>
+              <div className="p-4 space-y-2">
+                <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "place_order" ? "border-primary bg-primary/5" : "border-border hover:border-foreground/20"}`}>
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="place_order"
+                    checked={paymentMethod === "place_order"}
+                    onChange={() => setPaymentMethod("place_order")}
+                    className="accent-primary"
+                  />
+                  <Wallet className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Pay at Counter</p>
+                    <p className="text-xs text-muted-foreground">Order now, pay when you arrive or at delivery</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "paymongo" ? "border-primary bg-primary/5" : "border-border hover:border-foreground/20"}`}>
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="paymongo"
+                    checked={paymentMethod === "paymongo"}
+                    onChange={() => setPaymentMethod("paymongo")}
+                    className="accent-primary"
+                  />
+                  <CreditCard className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Online Payment</p>
+                    <p className="text-xs text-muted-foreground">Pay via GCash, Maya, or card through PayMongo</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             {/* Reservation notice */}
             {total >= MIN_RESERVATION_AMOUNT && (
               <div className="flex items-start gap-3 bg-primary/10 border border-primary/20 rounded-lg px-4 py-3">
@@ -212,14 +297,19 @@ export default function CustomerCheckoutPage() {
 
             <button
               onClick={handlePlaceOrder}
-              disabled={createOrder.isPending || items.length === 0}
+              disabled={isPending || items.length === 0}
               data-testid="button-place-order"
               className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createOrder.isPending ? (
+              {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Placing Order…
+                  {paymentMethod === "paymongo" ? "Redirecting to PayMongo…" : "Placing Order…"}
+                </>
+              ) : paymentMethod === "paymongo" ? (
+                <>
+                  <CreditCard className="h-4 w-4" />
+                  Pay ₱{total.toFixed(2)} via PayMongo
                 </>
               ) : (
                 <>

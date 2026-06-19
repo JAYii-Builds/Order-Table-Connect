@@ -1,4 +1,5 @@
 import { pgTable, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
 
 export const tableReservationStatusEnum = pgEnum("table_reservation_status", [
   "pending",
@@ -10,6 +11,7 @@ export const tableReservationStatusEnum = pgEnum("table_reservation_status", [
 
 export const tableReservationsTable = pgTable("table_reservations", {
   id: text("id").primaryKey(),
+  customer_id: text("customer_id").references(() => usersTable.id),
   customer_name: text("customer_name").notNull(),
   contact_info: text("contact_info").notNull(),
   party_size: integer("party_size").notNull(),

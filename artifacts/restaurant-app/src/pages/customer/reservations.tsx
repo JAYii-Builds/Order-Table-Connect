@@ -1,16 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useRealtime } from "@/hooks/use-realtime";
-import {
-  useCreateReservation,
-  useListReservations,
-  useListOrders,
-  getListReservationsQueryKey,
-  type Reservation,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { customFetch } from "@workspace/api-client-react";
+import { useListOrders } from "@workspace/api-client-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import {
   CalendarDays,
   Users,
@@ -18,10 +14,9 @@ import {
   CheckCircle2,
   Loader2,
   UtensilsCrossed,
-  AlertCircle,
+  Phone,
+  User,
 } from "lucide-react";
-
-const MIN_ORDER_AMOUNT = 200;
 
 const TIME_SLOTS = [
   "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
@@ -29,20 +24,42 @@ const TIME_SLOTS = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-yellow-500/15 text-yellow-400",
+  pending:   "bg-yellow-500/15 text-yellow-400",
   confirmed: "bg-blue-500/15 text-blue-400",
+  seated:    "bg-chart-3/15 text-chart-3",
   cancelled: "bg-destructive/15 text-destructive",
-  completed: "bg-muted text-muted-foreground",
+  no_show:   "bg-muted text-muted-foreground",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
+  pending:   "Pending",
   confirmed: "Confirmed",
+  seated:    "Seated",
   cancelled: "Cancelled",
-  completed: "Completed",
+  no_show:   "No Show",
 };
 
-function ReservationCard({ reservation }: { reservation: Reservation }) {
+interface TableReservation {
+  id: string;
+  customer_name: string;
+  contact_info: string;
+  party_size: number;
+  reservation_date: string;
+  reservation_time: string;
+  table_id: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+function formatTime(t: string): string {
+  const [h, m] = t.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  return `${hour % 12 || 12}:${m} ${ampm}`;
+}
+
+function ReservationCard({ reservation }: { reservation: TableReservation }) {
   return (
     <div className="bg-card border border-card-border rounded-xl p-5 flex items-start gap-4">
       <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
@@ -55,7 +72,7 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
           </span>
           <span className="text-muted-foreground text-xs">at</span>
           <span className="font-semibold text-foreground text-sm">
-            {reservation.reservation_time}
+            {formatTime(reservation.reservation_time)}
           </span>
           <span className={`ml-auto px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[reservation.status] ?? "bg-muted text-muted-foreground"}`}>
             {STATUS_LABELS[reservation.status] ?? reservation.status}
@@ -63,8 +80,11 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
         </div>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <Users className="h-3 w-3" />
-          {reservation.guest_count} guest{reservation.guest_count !== 1 ? "s" : ""}
+          {reservation.party_size} guest{reservation.party_size !== 1 ? "s" : ""}
         </p>
+        {reservation.table_id && (
+          <p className="text-xs text-muted-foreground mt-0.5">Table {reservation.table_id}</p>
+        )}
         {reservation.notes && (
           <p className="text-xs text-muted-foreground mt-1 italic">"{reservation.notes}"</p>
         )}
@@ -73,61 +93,73 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
   );
 }
 
+const MY_RESERVATIONS_KEY = "tableserve_my_reservations";
+
+function loadStoredReservations(): TableReservation[] {
+  try {
+    const raw = localStorage.getItem(MY_RESERVATIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveReservation(r: TableReservation) {
+  const existing = loadStoredReservations();
+  localStorage.setItem(MY_RESERVATIONS_KEY, JSON.stringify([r, ...existing]));
+}
+
 export default function CustomerReservationsPage() {
   useRealtime();
   const [location] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const preselectedOrderId = new URLSearchParams(location.split("?")[1] ?? "").get("order_id") ?? "";
+  const today = new Date().toISOString().split("T")[0];
 
-  const [orderId, setOrderId] = useState(preselectedOrderId);
+  const [name, setName] = useState(user?.full_name ?? "");
+  const [contact, setContact] = useState(user?.phone ?? "");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [guests, setGuests] = useState(2);
   const [notes, setNotes] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState<TableReservation | null>(null);
+  const [myReservations, setMyReservations] = useState<TableReservation[]>(loadStoredReservations);
 
-  const { data: reservations = [], isLoading: loadingReservations } = useListReservations();
-  const { data: orders = [], isLoading: loadingOrders } = useListOrders();
-
-  const eligibleOrders = orders.filter((o) => o.total_amount >= MIN_ORDER_AMOUNT);
-
+  // Pre-fill name/contact when user data loads
   useEffect(() => {
-    if (preselectedOrderId && !orderId) {
-      setOrderId(preselectedOrderId);
-    }
-  }, [preselectedOrderId]);
+    if (user?.full_name && !name) setName(user.full_name);
+    if (user?.phone && !contact) setContact(user.phone);
+  }, [user]);
 
-  const createReservation = useCreateReservation();
-
-  const today = new Date().toISOString().split("T")[0];
+  const createReservation = useMutation({
+    mutationFn: (data: object) =>
+      customFetch<TableReservation>("/api/table-reservations", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (res) => {
+      setSubmitted(res);
+      saveReservation(res);
+      setMyReservations(loadStoredReservations());
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to create reservation.";
+      toast({ title: "Reservation failed", description: msg, variant: "destructive" });
+    },
+  });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!orderId || !date || !time || guests < 1) return;
-
-    createReservation.mutate(
-      {
-        data: {
-          order_id: orderId,
-          reservation_date: date,
-          reservation_time: time,
-          guest_count: guests,
-          notes: notes.trim() || null,
-        },
-      },
-      {
-        onSuccess: () => {
-          setSubmitted(true);
-          queryClient.invalidateQueries({ queryKey: getListReservationsQueryKey() });
-        },
-        onError: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : "Failed to create reservation.";
-          toast({ title: "Reservation failed", description: msg, variant: "destructive" });
-        },
-      },
-    );
+    if (!name || !contact || !date || !time || guests < 1) return;
+    createReservation.mutate({
+      customer_name: name.trim(),
+      contact_info: contact.trim(),
+      party_size: guests,
+      reservation_date: date,
+      reservation_time: time,
+      notes: notes.trim() || null,
+    });
   }
 
   return (
@@ -139,7 +171,7 @@ export default function CustomerReservationsPage() {
             Table Reservations
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Reserve a table. Requires a minimum order of ₱{MIN_ORDER_AMOUNT}.
+            Reserve a table. We'll confirm your booking shortly.
           </p>
         </div>
 
@@ -156,10 +188,10 @@ export default function CustomerReservationsPage() {
               </div>
               <p className="font-semibold text-foreground mb-1">Reservation Submitted!</p>
               <p className="text-sm text-muted-foreground mb-4">
-                We'll confirm your table for {date} at {time} for {guests} guest{guests !== 1 ? "s" : ""}.
+                We'll confirm your table for {submitted.reservation_date} at {formatTime(submitted.reservation_time)} for {submitted.party_size} guest{submitted.party_size !== 1 ? "s" : ""}.
               </p>
               <button
-                onClick={() => { setSubmitted(false); setDate(""); setTime(""); setNotes(""); setOrderId(""); }}
+                onClick={() => { setSubmitted(null); setDate(""); setTime(""); setNotes(""); setGuests(2); }}
                 className="text-sm text-primary hover:underline"
               >
                 Make another reservation
@@ -167,37 +199,40 @@ export default function CustomerReservationsPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="p-5 space-y-5">
-              {/* Order selector */}
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  Link to Order <span className="text-destructive">*</span>
-                  <span className="text-muted-foreground font-normal ml-1">(₱{MIN_ORDER_AMOUNT}+ required)</span>
+                  Full Name <span className="text-destructive">*</span>
                 </label>
-                {loadingOrders ? (
-                  <div className="h-10 bg-muted rounded-lg animate-pulse" />
-                ) : eligibleOrders.length === 0 ? (
-                  <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
-                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                    <p className="text-xs text-muted-foreground">
-                      You don't have any qualifying orders yet. Place an order of ₱{MIN_ORDER_AMOUNT}+ first.
-                    </p>
-                  </div>
-                ) : (
-                  <select
-                    value={orderId}
-                    onChange={(e) => setOrderId(e.target.value)}
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
-                    data-testid="select-order"
-                    className="w-full text-sm bg-background border border-input rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
-                  >
-                    <option value="">Select an order…</option>
-                    {eligibleOrders.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        #{o.id.slice(0, 8).toUpperCase()} — ₱{o.total_amount.toFixed(2)} · {STATUS_LABELS[o.status] ?? o.status}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    placeholder="Your full name"
+                    className="w-full text-sm bg-background border border-input rounded-lg pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Phone / Email <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    required
+                    placeholder="09XXXXXXXXX or email@example.com"
+                    className="w-full text-sm bg-background border border-input rounded-lg pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
               </div>
 
               {/* Date */}
@@ -236,7 +271,7 @@ export default function CustomerReservationsPage() {
                           : "bg-background border-input text-foreground hover:border-primary/50"
                       }`}
                     >
-                      {slot}
+                      {formatTime(slot)}
                     </button>
                   ))}
                 </div>
@@ -246,13 +281,13 @@ export default function CustomerReservationsPage() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
                   <Users className="h-4 w-4" />
-                  Guests <span className="text-destructive">*</span>
+                  Party Size <span className="text-destructive">*</span>
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setGuests((g) => Math.max(1, g - 1))}
-                    className="h-9 w-9 flex items-center justify-center rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                    className="h-9 w-9 flex items-center justify-center rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors text-lg"
                   >
                     −
                   </button>
@@ -260,11 +295,11 @@ export default function CustomerReservationsPage() {
                   <button
                     type="button"
                     onClick={() => setGuests((g) => Math.min(20, g + 1))}
-                    className="h-9 w-9 flex items-center justify-center rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                    className="h-9 w-9 flex items-center justify-center rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors text-lg"
                   >
                     +
                   </button>
-                  <span className="text-xs text-muted-foreground">guest{guests !== 1 ? "s" : ""} (max 20)</span>
+                  <span className="text-xs text-muted-foreground">{guests === 1 ? "guest" : "guests"} (max 20)</span>
                 </div>
               </div>
 
@@ -284,13 +319,7 @@ export default function CustomerReservationsPage() {
 
               <button
                 type="submit"
-                disabled={
-                  createReservation.isPending ||
-                  !orderId ||
-                  !date ||
-                  !time ||
-                  eligibleOrders.length === 0
-                }
+                disabled={createReservation.isPending || !name || !contact || !date || !time}
                 data-testid="button-reserve"
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -310,21 +339,17 @@ export default function CustomerReservationsPage() {
           )}
         </div>
 
-        {/* Existing reservations */}
+        {/* My Reservations (this session / device) */}
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3">My Reservations</h2>
-          {loadingReservations ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : reservations.length === 0 ? (
+          {myReservations.length === 0 ? (
             <div className="text-center py-10 bg-card border border-card-border rounded-xl">
               <UtensilsCrossed className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
               <p className="text-muted-foreground text-sm">No reservations yet.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {reservations.map((r) => (
+              {myReservations.map((r) => (
                 <ReservationCard key={r.id} reservation={r} />
               ))}
             </div>

@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { eq, desc, and, ne, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, tableReservationsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
@@ -153,8 +153,13 @@ router.get(
             .from(tableReservationsTable)
             .orderBy(desc(tableReservationsTable.created_at));
 
-      // DEBUG — remove after confirming fix
-      console.log(`[table-reservations] GET date=${date ?? "ALL"} → ${rows.length} rows`, rows.map(r => ({ id: r.id.slice(0,8), customer_id: r.customer_id, date: r.reservation_date, status: r.status })));
+      // DEBUG: compare Drizzle query vs raw SQL to isolate root cause
+      const rawResult = await db.execute(
+        sql`SELECT id, customer_id, reservation_date, status FROM table_reservations ORDER BY created_at DESC`
+      );
+      console.log(`[table-reservations] Drizzle rows=${rows.length}  Raw SQL rows=${rawResult.rows.length}`);
+      console.log("[table-reservations] Raw SQL data:", rawResult.rows);
+      console.log("[table-reservations] Drizzle data:", rows.map(r => ({ id: r.id.slice(0,8), customer_id: r.customer_id, date: r.reservation_date })));
 
       res.json(rows.map(serializeTableReservation));
     } catch (err) {

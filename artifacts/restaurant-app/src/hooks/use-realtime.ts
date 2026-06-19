@@ -7,6 +7,7 @@ import {
   getGetKitchenDashboardQueryKey,
   getGetManagerDashboardQueryKey,
 } from "@workspace/api-client-react";
+import { getApiBaseUrl } from "@/lib/api-config";
 
 export function useRealtime() {
   const queryClient = useQueryClient();
@@ -15,7 +16,7 @@ export function useRealtime() {
     const token = localStorage.getItem("auth_token");
     if (!token) return;
 
-    const url = `/api/events?token=${encodeURIComponent(token)}`;
+    const url = `${getApiBaseUrl()}/api/events?token=${encodeURIComponent(token)}`;
     const es = new EventSource(url);
 
     function invalidateOrders() {

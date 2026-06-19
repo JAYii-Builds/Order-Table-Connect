@@ -17,6 +17,9 @@ import {
   ClipboardList,
   MonitorSmartphone,
   UserPlus,
+  BarChart2,
+  RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -65,12 +68,18 @@ export function DashboardLayout({
       { label: "Dashboard", href: "/kitchen/dashboard", icon: LayoutDashboard },
     ],
     manager: [
-      { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
-      { label: "Menu",      href: "/manager/menu",      icon: ShoppingBag },
-      { label: "POS",       href: "/pos",               icon: MonitorSmartphone },
+      { label: "Dashboard",    href: "/manager/dashboard",     icon: LayoutDashboard },
+      { label: "Menu",         href: "/manager/menu",          icon: ShoppingBag },
+      { label: "Sales Reports",href: "/manager/sales-reports", icon: BarChart2 },
+      { label: "Users",        href: "/manager/users",         icon: Users },
+      { label: "Refunds",      href: "/manager/refunds",       icon: RefreshCw },
+      { label: "Feedback",     href: "/manager/feedback",      icon: MessageSquare },
+      { label: "POS",          href: "/pos",                   icon: MonitorSmartphone },
     ],
     owner: [
-      { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+      { label: "Dashboard",    href: "/owner/dashboard",  icon: LayoutDashboard },
+      { label: "Sales",        href: "/owner/sales",      icon: BarChart2 },
+      { label: "Refund Queue", href: "/owner/refunds",    icon: RefreshCw },
     ],
     admin: [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },

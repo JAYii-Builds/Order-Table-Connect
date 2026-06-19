@@ -153,6 +153,9 @@ router.get(
             .from(tableReservationsTable)
             .orderBy(desc(tableReservationsTable.created_at));
 
+      // DEBUG — remove after confirming fix
+      console.log(`[table-reservations] GET date=${date ?? "ALL"} → ${rows.length} rows`, rows.map(r => ({ id: r.id.slice(0,8), customer_id: r.customer_id, date: r.reservation_date, status: r.status })));
+
       res.json(rows.map(serializeTableReservation));
     } catch (err) {
       next(err);

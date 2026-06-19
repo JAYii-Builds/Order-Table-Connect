@@ -208,7 +208,7 @@ function ReservationCard({ reservation, onMutate }: { reservation: TableReservat
 
 export default function StaffReservationsPage() {
   useRealtime();
-  const [dateFilter, setDateFilter] = useState(todayStr());
+  const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
 
@@ -318,7 +318,7 @@ export default function StaffReservationsPage() {
           <div className="text-center py-16 bg-card border border-card-border rounded-xl">
             <CalendarDays className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
             <p className="text-muted-foreground">
-              {search ? "No reservations match your search." : dateFilter ? "No reservations for this date." : "No reservations yet."}
+              {search ? "No reservations match your search." : dateFilter ? `No reservations for ${dateFilter}.` : "No reservations yet."}
             </p>
           </div>
         ) : (

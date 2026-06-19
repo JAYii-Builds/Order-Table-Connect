@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter @workspace/restaurant-app run build"
-  publish = "artifacts/restaurant-app/dist/public"
+  publish = "artifacts/restaurant-app/dist"
 
 [build.environment]
   NODE_VERSION = "24"

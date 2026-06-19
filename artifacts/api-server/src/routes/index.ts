@@ -12,6 +12,9 @@ import tableReservationsRouter from "./table-reservations";
 import paymentsRouter from "./payments";
 import refundsRouter from "./refunds";
 import salesReportsRouter from "./sales-reports";
+import auditLogsRouter from "./audit-logs";
+import feedbackRouter from "./feedback";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -28,5 +31,8 @@ router.use(tableReservationsRouter);
 router.use(paymentsRouter);
 router.use(refundsRouter);
 router.use(salesReportsRouter);
+router.use(auditLogsRouter);
+router.use(feedbackRouter);
+router.use(adminRouter);
 
 export default router;

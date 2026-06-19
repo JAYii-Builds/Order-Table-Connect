@@ -34,6 +34,9 @@ import OwnerSalesPage from "@/pages/owner/sales";
 import OwnerRefundsPage from "@/pages/owner/refunds";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsersPage from "@/pages/admin/users";
+import AdminAuditLogsPage from "@/pages/admin/audit-logs";
+import AdminBackupPage from "@/pages/admin/backup";
+import CustomerProfilePage from "@/pages/customer/profile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,6 +86,11 @@ function Router() {
       <Route path="/customer/payment-return">
         <ProtectedRoute allowedRoles={["customer"]}>
           <PaymentReturnPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer/profile">
+        <ProtectedRoute allowedRoles={["customer"]}>
+          <CustomerProfilePage />
         </ProtectedRoute>
       </Route>
 
@@ -168,6 +176,16 @@ function Router() {
       <Route path="/admin/users">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminUsersPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/audit-logs">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminAuditLogsPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/backup">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminBackupPage />
         </ProtectedRoute>
       </Route>
 

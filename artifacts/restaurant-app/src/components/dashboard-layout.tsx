@@ -20,6 +20,7 @@ import {
   BarChart2,
   RefreshCw,
   MessageSquare,
+  HardDrive,
 } from "lucide-react";
 
 interface NavItem {
@@ -53,11 +54,12 @@ export function DashboardLayout({
 
   const ROLE_NAV: Record<string, NavItem[]> = {
     customer: [
-      { label: "Dashboard", href: "/customer/dashboard", icon: LayoutDashboard },
-      { label: "Menu", href: "/customer/menu", icon: BookOpen },
-      { label: "My Cart", href: "/customer/cart", icon: ShoppingCart, badge: itemCount || undefined },
-      { label: "My Orders", href: "/customer/orders", icon: ClipboardList },
+      { label: "Dashboard",    href: "/customer/dashboard",    icon: LayoutDashboard },
+      { label: "Menu",         href: "/customer/menu",         icon: BookOpen },
+      { label: "My Cart",      href: "/customer/cart",         icon: ShoppingCart, badge: itemCount || undefined },
+      { label: "My Orders",    href: "/customer/orders",       icon: ClipboardList },
       { label: "Reservations", href: "/customer/reservations", icon: CalendarDays },
+      { label: "My Profile",   href: "/customer/profile",      icon: User },
     ],
     staff: [
       { label: "Dashboard",    href: "/staff/dashboard", icon: LayoutDashboard },
@@ -82,9 +84,11 @@ export function DashboardLayout({
       { label: "Refund Queue", href: "/owner/refunds",    icon: RefreshCw },
     ],
     admin: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-      { label: "Users",     href: "/admin/users",     icon: Users },
-      { label: "POS",       href: "/pos",             icon: MonitorSmartphone },
+      { label: "Dashboard",  href: "/admin/dashboard",  icon: LayoutDashboard },
+      { label: "Users",      href: "/admin/users",      icon: Users },
+      { label: "Audit Trail",href: "/admin/audit-logs", icon: ClipboardList },
+      { label: "Backup",     href: "/admin/backup",     icon: HardDrive },
+      { label: "POS",        href: "/pos",              icon: MonitorSmartphone },
     ],
   };
 

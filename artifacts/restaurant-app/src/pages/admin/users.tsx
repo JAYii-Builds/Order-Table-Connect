@@ -3,12 +3,24 @@ import {
   useListUsers,
   getListUsersQueryKey,
   useUpdateUser,
-  User,
-  UserRole,
+  customFetch,
+  type User,
+  type UserRole,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { Users, Search, Shield, UserCheck, UserX, ChevronDown, Loader2 } from "lucide-react";
+import {
+  Users,
+  Search,
+  Shield,
+  UserCheck,
+  UserX,
+  ChevronDown,
+  Loader2,
+  UserPlus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -52,35 +64,20 @@ function RoleDropdown({
       <button
         onClick={() => setOpen(!open)}
         disabled={isUpdating}
-        data-testid={`role-dropdown-${user.id}`}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-80 ${ROLE_COLORS[user.role as UserRole]}`}
       >
-        {isUpdating ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : (
-          ROLE_LABELS[user.role as UserRole]
-        )}
+        {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : ROLE_LABELS[user.role as UserRole]}
         <ChevronDown className="h-3 w-3" />
       </button>
-
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-full mt-1 w-36 bg-card border border-card-border rounded-lg shadow-md z-20 py-1 overflow-hidden">
             {available.map((role) => (
               <button
                 key={role}
-                onClick={() => {
-                  onRoleChange(user.id, role);
-                  setOpen(false);
-                }}
-                data-testid={`role-option-${role}`}
-                className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted ${
-                  user.role === role ? "text-primary font-semibold" : "text-foreground"
-                }`}
+                onClick={() => { onRoleChange(user.id, role); setOpen(false); }}
+                className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted ${user.role === role ? "text-primary font-semibold" : "text-foreground"}`}
               >
                 {ROLE_LABELS[role]}
               </button>
@@ -92,11 +89,108 @@ function RoleDropdown({
   );
 }
 
+interface CreateUserForm {
+  full_name: string;
+  email: string;
+  role: UserRole;
+  password: string;
+  phone: string;
+}
+
+function CreateUserPanel({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { toast } = useToast();
+  const [form, setForm] = useState<CreateUserForm>({
+    full_name: "",
+    email: "",
+    role: "staff",
+    password: "",
+    phone: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      customFetch("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify(form),
+      }),
+    onSuccess: () => {
+      toast({ title: "User created", description: `${form.full_name} (${form.role}) added.` });
+      onCreated();
+      onClose();
+    },
+    onError: (err: unknown) =>
+      toast({ title: "Failed to create user", description: err instanceof Error ? err.message : "Error", variant: "destructive" }),
+  });
+
+  function set(field: keyof CreateUserForm, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  const nonCustomerRoles: UserRole[] = ["staff", "kitchen_staff", "manager", "owner", "admin"];
+
+  return (
+    <div className="bg-card border border-card-border rounded-xl p-5 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-foreground">Create New Account</h2>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          { label: "Full Name *", field: "full_name" as const, placeholder: "Jane Smith" },
+          { label: "Email *", field: "email" as const, placeholder: "jane@example.com", type: "email" },
+          { label: "Temporary Password *", field: "password" as const, placeholder: "Min 6 chars", type: "password" },
+          { label: "Phone (optional)", field: "phone" as const, placeholder: "09XXXXXXXXX" },
+        ].map(({ label, field, placeholder, type }) => (
+          <div key={field}>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
+            <input
+              type={type ?? "text"}
+              value={form[field]}
+              onChange={(e) => set(field, e.target.value)}
+              placeholder={placeholder}
+              className="w-full text-sm bg-background border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+        ))}
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Role *</label>
+          <select
+            value={form.role}
+            onChange={(e) => set("role", e.target.value)}
+            className="w-full text-sm bg-background border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+          >
+            {nonCustomerRoles.map((r) => (
+              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || !form.full_name || !form.email || !form.password}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium disabled:opacity-50"
+        >
+          {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+          Create Account
+        </button>
+        <button onClick={onClose} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg text-sm hover:text-foreground">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
@@ -105,8 +199,19 @@ export default function AdminUsersPage() {
   const { data: users = [], isLoading } = useListUsers({
     query: { queryKey: getListUsersQueryKey() },
   });
-
   const updateMutation = useUpdateUser();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      customFetch(`/api/admin/users/${id}`, { method: "DELETE" }),
+    onSuccess: (res: { message?: string }) => {
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+      toast({ title: res.message ?? "User deleted" });
+    },
+    onError: (err: unknown) =>
+      toast({ title: "Delete failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" }),
+    onSettled: () => setDeletingId(null),
+  });
 
   function handleRoleChange(userId: string, role: UserRole) {
     if (updatingId) return;
@@ -114,79 +219,82 @@ export default function AdminUsersPage() {
     updateMutation.mutate(
       { id: userId, data: { role } },
       {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-          toast({ title: "Role updated", description: `User role changed to ${ROLE_LABELS[role]}` });
-        },
-        onError: () => {
-          toast({ title: "Failed to update role", variant: "destructive" });
-        },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }); toast({ title: "Role updated" }); },
+        onError: () => toast({ title: "Failed to update role", variant: "destructive" }),
         onSettled: () => setUpdatingId(null),
       }
     );
   }
 
-  function handleStatusToggle(user: User) {
+  function handleStatusToggle(u: User) {
     if (updatingId) return;
-    setUpdatingId(user.id);
-    const nextStatus = !user.is_active;
+    setUpdatingId(u.id);
+    const next = !u.is_active;
     updateMutation.mutate(
-      { id: user.id, data: { is_active: nextStatus } },
+      { id: u.id, data: { is_active: next } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-          toast({
-            title: nextStatus ? "Account reactivated" : "Account deactivated",
-            description: `${user.full_name}'s account is now ${nextStatus ? "active" : "inactive"}.`,
-          });
+          toast({ title: next ? "Account reactivated" : "Account deactivated" });
         },
-        onError: () => {
-          toast({ title: "Failed to update status", variant: "destructive" });
-        },
+        onError: () => toast({ title: "Failed", variant: "destructive" }),
         onSettled: () => setUpdatingId(null),
       }
     );
+  }
+
+  function handleDelete(u: User) {
+    if (!window.confirm(`Delete account for ${u.full_name} (${u.email})? This cannot be undone.`)) return;
+    setDeletingId(u.id);
+    deleteMutation.mutate(u.id);
   }
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      u.full_name.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q);
+    const matchSearch = !q || u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
     const matchRole = roleFilter === "all" || u.role === roleFilter;
-    const matchStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" ? u.is_active : !u.is_active);
+    const matchStatus = statusFilter === "all" || (statusFilter === "active" ? u.is_active : !u.is_active);
     return matchSearch && matchRole && matchStatus;
   });
 
   const activeCount = users.filter((u) => u.is_active).length;
-  const inactiveCount = users.length - activeCount;
 
   return (
     <DashboardLayout role="admin" roleLabel="Admin" roleColor="text-primary">
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">
-            User Management
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            View, manage roles, and activate or deactivate user accounts.
-          </p>
+        <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">
+              User Management
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Create accounts, manage roles, and activate or deactivate users.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCreate((v) => !v)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:opacity-90"
+          >
+            <UserPlus className="h-4 w-4" />
+            Create User
+          </button>
         </div>
 
-        {/* Summary row */}
+        {showCreate && (
+          <CreateUserPanel
+            onClose={() => setShowCreate(false)}
+            onCreated={() => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() })}
+          />
+        )}
+
+        {/* Summary */}
         <div className="flex gap-4 mb-6 flex-wrap">
           {[
             { label: "Total Users", value: users.length, icon: Users, color: "text-primary" },
             { label: "Active", value: activeCount, icon: UserCheck, color: "text-chart-2" },
-            { label: "Inactive", value: inactiveCount, icon: UserX, color: "text-destructive" },
+            { label: "Inactive", value: users.length - activeCount, icon: UserX, color: "text-destructive" },
           ].map((s) => (
-            <div
-              key={s.label}
-              className="flex items-center gap-3 bg-card border border-card-border rounded-lg px-4 py-3"
-            >
+            <div key={s.label} className="flex items-center gap-3 bg-card border border-card-border rounded-lg px-4 py-3">
               <s.icon className={`h-4 w-4 ${s.color}`} />
               <div>
                 <div className="text-xs text-muted-foreground">{s.label}</div>
@@ -216,11 +324,7 @@ export default function AdminUsersPage() {
             className="text-sm bg-card border border-card-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="all">All Roles</option>
-            {ALL_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
+            {ALL_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
           </select>
           <select
             value={statusFilter}
@@ -241,9 +345,7 @@ export default function AdminUsersPage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 text-sm text-muted-foreground">
-              No users match your filters
-            </div>
+            <div className="text-center py-16 text-sm text-muted-foreground">No users match your filters</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -259,20 +361,14 @@ export default function AdminUsersPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtered.map((u) => (
-                    <tr
-                      key={u.id}
-                      data-testid={`user-row-${u.id}`}
-                      className={`hover:bg-muted/30 transition-colors ${!u.is_active ? "opacity-60" : ""}`}
-                    >
+                    <tr key={u.id} data-testid={`user-row-${u.id}`} className={`hover:bg-muted/30 transition-colors ${!u.is_active ? "opacity-60" : ""}`}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                             {u.full_name[0]?.toUpperCase()}
                           </div>
                           <span className="font-medium text-foreground">{u.full_name}</span>
-                          {u.id === currentUser?.id && (
-                            <span className="text-xs text-muted-foreground">(you)</span>
-                          )}
+                          {u.id === currentUser?.id && <span className="text-xs text-muted-foreground">(you)</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
@@ -285,14 +381,7 @@ export default function AdminUsersPage() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                            u.is_active
-                              ? "bg-chart-2/15 text-chart-2"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                          data-testid={`status-badge-${u.id}`}
-                        >
+                        <span data-testid={`status-badge-${u.id}`} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${u.is_active ? "bg-chart-2/15 text-chart-2" : "bg-muted text-muted-foreground"}`}>
                           {u.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
@@ -300,33 +389,25 @@ export default function AdminUsersPage() {
                         {new Date(u.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {u.id !== currentUser?.id && (
-                          <button
-                            onClick={() => handleStatusToggle(u)}
-                            disabled={updatingId === u.id}
-                            data-testid={`button-toggle-status-${u.id}`}
-                            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
-                              u.is_active
-                                ? "text-destructive hover:bg-destructive/10"
-                                : "text-chart-2 hover:bg-chart-2/10"
-                            }`}
-                          >
-                            {updatingId === u.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : u.is_active ? (
-                              <>
-                                <UserX className="h-3.5 w-3.5" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck className="h-3.5 w-3.5" />
-                                Reactivate
-                              </>
-                            )}
-                          </button>
-                        )}
-                        {u.id === currentUser?.id && (
+                        {u.id !== currentUser?.id ? (
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => handleStatusToggle(u)}
+                              disabled={updatingId === u.id}
+                              data-testid={`button-toggle-status-${u.id}`}
+                              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors ${u.is_active ? "text-destructive hover:bg-destructive/10" : "text-chart-2 hover:bg-chart-2/10"}`}
+                            >
+                              {updatingId === u.id ? <Loader2 className="h-3 w-3 animate-spin" /> : u.is_active ? <><UserX className="h-3 w-3" />Deactivate</> : <><UserCheck className="h-3 w-3" />Reactivate</>}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u)}
+                              disabled={deletingId === u.id}
+                              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              {deletingId === u.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                            </button>
+                          </div>
+                        ) : (
                           <span className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
                             <Shield className="h-3 w-3" /> You
                           </span>
@@ -339,10 +420,7 @@ export default function AdminUsersPage() {
             </div>
           )}
         </div>
-
-        <p className="text-xs text-muted-foreground mt-3">
-          Showing {filtered.length} of {users.length} users
-        </p>
+        <p className="text-xs text-muted-foreground mt-3">Showing {filtered.length} of {users.length} users</p>
       </div>
     </DashboardLayout>
   );

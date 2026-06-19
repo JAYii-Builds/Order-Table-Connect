@@ -7,6 +7,7 @@ import {
   ChevronUp,
   UtensilsCrossed,
   RefreshCw,
+  Star,
 } from "lucide-react";
 import { useState } from "react";
 import { useRealtime } from "@/hooks/use-realtime";
@@ -38,7 +39,94 @@ interface MyRefund {
   amount: number;
 }
 
+interface MyFeedback {
+  id: string;
+  order_id: string;
+  rating: number;
+  comment: string | null;
+}
+
 const MY_REFUNDS_KEY = ["refunds", "my"];
+const MY_FEEDBACK_KEY = ["feedback", "my"];
+
+function FeedbackSection({ order, myFeedback }: { order: Order; myFeedback: MyFeedback[] }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [hovered, setHovered] = useState(0);
+  const [selected, setSelected] = useState(0);
+  const [comment, setComment] = useState("");
+
+  const existing = myFeedback.find((f) => f.order_id === order.id);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      customFetch<MyFeedback>("/api/feedback", {
+        method: "POST",
+        body: JSON.stringify({ order_id: order.id, rating: selected, comment: comment.trim() || null }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_FEEDBACK_KEY });
+      toast({ title: "Thanks for your feedback!" });
+    },
+    onError: (err: unknown) =>
+      toast({ title: "Feedback failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" }),
+  });
+
+  if (existing) {
+    return (
+      <div className="border-t border-border pt-3 flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-0.5">
+          {[1,2,3,4,5].map((i) => (
+            <Star key={i} className={`h-3.5 w-3.5 ${i <= existing.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+          ))}
+        </div>
+        <span className="text-muted-foreground">Your rating</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-border pt-3 space-y-2">
+      <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+        <Star className="h-3.5 w-3.5 text-yellow-400" />
+        How was your order?
+      </p>
+      <div className="flex items-center gap-1">
+        {[1,2,3,4,5].map((i) => (
+          <button
+            key={i}
+            type="button"
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(0)}
+            onClick={() => setSelected(i)}
+            className="p-0.5 transition-transform hover:scale-110"
+          >
+            <Star className={`h-5 w-5 ${i <= (hovered || selected) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+          </button>
+        ))}
+      </div>
+      {selected > 0 && (
+        <>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Optional comment…"
+            rows={2}
+            className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground"
+          />
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white text-xs rounded-lg font-medium disabled:opacity-50"
+          >
+            {mutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3 fill-white" />}
+            Submit Rating
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 function RefundSection({ order, myRefunds }: { order: Order; myRefunds: MyRefund[] }) {
   const { toast } = useToast();
@@ -136,10 +224,11 @@ function RefundSection({ order, myRefunds }: { order: Order; myRefunds: MyRefund
   );
 }
 
-function OrderCard({ order, myRefunds }: { order: Order; myRefunds: MyRefund[] }) {
+function OrderCard({ order, myRefunds, myFeedback }: { order: Order; myRefunds: MyRefund[]; myFeedback: MyFeedback[] }) {
   const [expanded, setExpanded] = useState(false);
   const date = new Date(order.created_at);
   const canRefund = order.status === "delivered" || order.status === "confirmed";
+  const canFeedback = order.status === "delivered";
 
   return (
     <div className="bg-card border border-card-border rounded-xl overflow-hidden">
@@ -196,6 +285,7 @@ function OrderCard({ order, myRefunds }: { order: Order; myRefunds: MyRefund[] }
             {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </div>
           {canRefund && <RefundSection order={order} myRefunds={myRefunds} />}
+          {canFeedback && <FeedbackSection order={order} myFeedback={myFeedback} />}
         </div>
       )}
     </div>
@@ -209,6 +299,11 @@ export default function CustomerOrdersPage() {
   const { data: myRefunds = [] } = useQuery({
     queryKey: MY_REFUNDS_KEY,
     queryFn: () => customFetch<MyRefund[]>("/api/refunds/my"),
+  });
+
+  const { data: myFeedback = [] } = useQuery({
+    queryKey: MY_FEEDBACK_KEY,
+    queryFn: () => customFetch<MyFeedback[]>("/api/feedback/my"),
   });
 
   return (
@@ -236,7 +331,7 @@ export default function CustomerOrdersPage() {
         ) : (
           <div className="space-y-3">
             {orders.map((order) => (
-              <OrderCard key={order.id} order={order} myRefunds={myRefunds} />
+              <OrderCard key={order.id} order={order} myRefunds={myRefunds} myFeedback={myFeedback} />
             ))}
           </div>
         )}

@@ -79,7 +79,7 @@ router.post("/payments/create-link", requireAuth, async (req, res, next): Promis
       id: orderId,
       customer_id: user.userId,
       status: "pending",
-      total_amount: totalAmount.toFixed(2) as unknown as number,
+      total_amount: totalAmount.toFixed(2),
       notes: notes ?? null,
     });
 

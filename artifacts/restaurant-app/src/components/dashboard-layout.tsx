@@ -21,6 +21,8 @@ import {
   RefreshCw,
   MessageSquare,
   HardDrive,
+  Archive,
+  Settings,
 } from "lucide-react";
 
 interface NavItem {
@@ -76,6 +78,7 @@ export function DashboardLayout({
       { label: "Users",        href: "/manager/users",         icon: Users },
       { label: "Refunds",      href: "/manager/refunds",       icon: RefreshCw },
       { label: "Feedback",     href: "/manager/feedback",      icon: MessageSquare },
+      { label: "Archive",      href: "/manager/archive",       icon: Archive },
       { label: "POS",          href: "/pos",                   icon: MonitorSmartphone },
     ],
     owner: [
@@ -86,9 +89,10 @@ export function DashboardLayout({
     admin: [
       { label: "Dashboard",  href: "/admin/dashboard",  icon: LayoutDashboard },
       { label: "Users",      href: "/admin/users",      icon: Users },
-      { label: "Audit Trail",href: "/admin/audit-logs", icon: ClipboardList },
-      { label: "Backup",     href: "/admin/backup",     icon: HardDrive },
-      { label: "POS",        href: "/pos",              icon: MonitorSmartphone },
+      { label: "Audit Trail",   href: "/admin/audit-logs",    icon: ClipboardList },
+      { label: "Backup",        href: "/admin/backup",         icon: HardDrive },
+      { label: "Maintenance",   href: "/admin/maintenance",    icon: Settings },
+      { label: "POS",           href: "/pos",                  icon: MonitorSmartphone },
     ],
   };
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, ordersTable, orderItemsTable, menuItemsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
@@ -158,7 +158,7 @@ router.get("/orders", requireAuth, async (req, res, next): Promise<void> => {
     const isStaff = ["staff", "kitchen_staff", "manager", "owner", "admin"].includes(user.role);
 
     const orders = isStaff
-      ? await db.select().from(ordersTable).orderBy(desc(ordersTable.created_at))
+      ? await db.select().from(ordersTable).where(eq(ordersTable.is_archived, false)).orderBy(desc(ordersTable.created_at))
       : await db
           .select()
           .from(ordersTable)

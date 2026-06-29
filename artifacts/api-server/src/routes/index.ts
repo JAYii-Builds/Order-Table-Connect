@@ -15,6 +15,8 @@ import salesReportsRouter from "./sales-reports";
 import auditLogsRouter from "./audit-logs";
 import feedbackRouter from "./feedback";
 import adminRouter from "./admin";
+import archiveRouter from "./archive";
+import maintenanceRouter from "./maintenance";
 
 const router: IRouter = Router();
 
@@ -34,5 +36,7 @@ router.use(salesReportsRouter);
 router.use(auditLogsRouter);
 router.use(feedbackRouter);
 router.use(adminRouter);
+router.use(archiveRouter);
+router.use(maintenanceRouter);
 
 export default router;

@@ -5,6 +5,12 @@ export type RealtimeEventType =
   | "order:updated"
   | "reservation:created"
   | "reservation:updated"
+  | "table-reservation:created"
+  | "table-reservation:updated"
+  | "refund:created"
+  | "refund:updated"
+  | "walk-in:created"
+  | "walk-in:updated"
   | "ping";
 
 export interface RealtimeEvent {

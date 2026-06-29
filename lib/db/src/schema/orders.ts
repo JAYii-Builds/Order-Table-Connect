@@ -1,4 +1,4 @@
-import { pgTable, text, numeric, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, numeric, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const orderStatusEnum = pgEnum("order_status", [
@@ -16,6 +16,7 @@ export const ordersTable = pgTable("orders", {
   status: orderStatusEnum("status").notNull().default("pending"),
   total_amount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
   notes: text("notes"),
+  is_archived: boolean("is_archived").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -40,6 +40,8 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsersPage from "@/pages/admin/users";
 import AdminAuditLogsPage from "@/pages/admin/audit-logs";
 import AdminBackupPage from "@/pages/admin/backup";
+import AdminMaintenancePage from "@/pages/admin/maintenance";
+import ManagerArchivePage from "@/pages/manager/archive";
 import CustomerProfilePage from "@/pages/customer/profile";
 
 const queryClient = new QueryClient({
@@ -155,6 +157,11 @@ function Router() {
           <ManagerFeedbackPage />
         </ProtectedRoute>
       </Route>
+      <Route path="/manager/archive">
+        <ProtectedRoute allowedRoles={["manager"]}>
+          <ManagerArchivePage />
+        </ProtectedRoute>
+      </Route>
 
       <Route path="/owner/dashboard">
         <ProtectedRoute allowedRoles={["owner"]}>
@@ -190,6 +197,11 @@ function Router() {
       <Route path="/admin/backup">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminBackupPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/maintenance">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminMaintenancePage />
         </ProtectedRoute>
       </Route>
 

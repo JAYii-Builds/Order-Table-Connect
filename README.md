@@ -1,5 +1,7 @@
 # TableServe — Project Overview
 
+> Built and designed by [JAYii Builds](https://jayiibuilds.vercel.app)
+
 A full-stack restaurant ordering and table reservation system for **TableServe**. Built with React, TypeScript, Express, and PostgreSQL — featuring a customer-facing ordering flow, role-based dashboards for 6 staff roles, and a full menu and user management suite.
 
 ---

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { count, eq, and, gt, gte, sum, sql, ne, inArray } from "drizzle-orm";
-import { db, usersTable, sessionsTable, ordersTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, ordersTable, walkInsTable, tableReservationsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -19,6 +19,17 @@ function todayStart(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+function monthStart(): Date {
+  const d = new Date();
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 router.get(
@@ -41,11 +52,31 @@ router.get(
   requireAuth,
   requireRole("staff"),
   async (req, res): Promise<void> => {
+    const todayStr = todayDateString();
+
+    const [seatedWalkIns, seatedReservations, pendingOrders, todaysReservations] = await Promise.all([
+      db.select({ count: count() }).from(walkInsTable).where(eq(walkInsTable.status, "seated")),
+      db.select({ count: count() }).from(tableReservationsTable).where(eq(tableReservationsTable.status, "seated")),
+      db
+        .select({ count: count() })
+        .from(ordersTable)
+        .where(and(inArray(ordersTable.status, ["pending", "confirmed"]), eq(ordersTable.is_archived, false))),
+      db
+        .select({ count: count() })
+        .from(tableReservationsTable)
+        .where(
+          and(
+            eq(tableReservationsTable.reservation_date, todayStr),
+            inArray(tableReservationsTable.status, ["pending", "confirmed"]),
+          ),
+        ),
+    ]);
+
     res.json({
       role: "staff",
-      active_tables: 0,
-      pending_orders: 0,
-      todays_reservations: 0,
+      active_tables: Number(seatedWalkIns[0]?.count ?? 0) + Number(seatedReservations[0]?.count ?? 0),
+      pending_orders: Number(pendingOrders[0]?.count ?? 0),
+      todays_reservations: Number(todaysReservations[0]?.count ?? 0),
       recent_activity: mockActivity("staff"),
     });
   }
@@ -144,19 +175,24 @@ router.get(
   requireAuth,
   requireRole("owner"),
   async (req, res): Promise<void> => {
-    const [customerCount, staffCount] = await Promise.all([
+    const start = monthStart();
+
+    const [customerCount, staffCount, monthlyOrders] = await Promise.all([
       db.select({ count: count() }).from(usersTable).where(eq(usersTable.role, "customer")),
-      db.select({ count: count() }).from(usersTable).where(
-        and(
-          eq(usersTable.is_active, true)
-        )
-      ),
+      db
+        .select({ count: count() })
+        .from(usersTable)
+        .where(and(eq(usersTable.is_active, true))),
+      db
+        .select({ total_revenue: sum(ordersTable.total_amount), total_orders: count() })
+        .from(ordersTable)
+        .where(and(gte(ordersTable.created_at, start), ne(ordersTable.status, "cancelled"))),
     ]);
 
     res.json({
       role: "owner",
-      total_revenue_month: 0,
-      total_orders_month: 0,
+      total_revenue_month: Number(monthlyOrders[0]?.total_revenue ?? 0),
+      total_orders_month: Number(monthlyOrders[0]?.total_orders ?? 0),
       total_customers: customerCount[0]?.count ?? 0,
       total_staff: staffCount[0]?.count ?? 0,
       recent_activity: mockActivity("owner"),

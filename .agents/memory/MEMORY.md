@@ -1,3 +1,0 @@
-- [JWT payload shape](jwt-payload.md) — req.user.userId (not .id); requireRole takes spread args not array
-- [Supabase DB connection](supabase-db.md) — SUPABASE_DB_URL preferred over DATABASE_URL; custom URL parser in lib/db for special-char passwords; no RLS needed
-- [Codegen workflow](codegen-workflow.md) — always run codegen after openapi.yaml changes; typecheck:libs after schema changes

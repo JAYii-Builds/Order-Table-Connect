@@ -38,7 +38,7 @@ export default function OwnerDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatCard
               title="Revenue This Month"
-              value={`$${(data?.total_revenue_month ?? 0).toLocaleString()}`}
+              value={`₱${(data?.total_revenue_month ?? 0).toLocaleString()}`}
               icon={TrendingUp}
               colorClass="bg-chart-2/15 text-chart-2"
               testId="stat-revenue-month"

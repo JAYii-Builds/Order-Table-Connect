@@ -1,19 +1,17 @@
 import { Router, type IRouter } from "express";
-import { count, eq, and, gt, gte, sum, sql, ne, inArray } from "drizzle-orm";
-import { db, usersTable, sessionsTable, ordersTable, walkInsTable, tableReservationsTable } from "@workspace/db";
+import { count, eq, and, gt, gte, sum, sql, ne, inArray, desc } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  sessionsTable,
+  ordersTable,
+  walkInsTable,
+  tableReservationsTable,
+  auditLogsTable,
+} from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 
 const router: IRouter = Router();
-
-function mockActivity(role: string) {
-  const now = new Date();
-  const items = [
-    { id: "1", description: `Welcome to the ${role} dashboard`, type: "info", timestamp: now.toISOString() },
-    { id: "2", description: "System is running normally", type: "system", timestamp: new Date(now.getTime() - 60000).toISOString() },
-    { id: "3", description: "Last login was successful", type: "auth", timestamp: new Date(now.getTime() - 120000).toISOString() },
-  ];
-  return items;
-}
 
 function todayStart(): Date {
   const d = new Date();
@@ -37,14 +35,47 @@ router.get(
   requireAuth,
   requireRole("customer"),
   async (req, res): Promise<void> => {
+    const userId = req.user!.userId;
+
+    const [orderCount, reservationCount, recentOrders] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(ordersTable)
+        .where(eq(ordersTable.customer_id, userId)),
+
+      db
+        .select({ count: count() })
+        .from(tableReservationsTable)
+        .where(
+          and(
+            eq(tableReservationsTable.customer_id, userId),
+            inArray(tableReservationsTable.status, ["pending", "confirmed"]),
+          ),
+        ),
+
+      db
+        .select({ id: ordersTable.id, status: ordersTable.status, total_amount: ordersTable.total_amount, created_at: ordersTable.created_at })
+        .from(ordersTable)
+        .where(eq(ordersTable.customer_id, userId))
+        .orderBy(desc(ordersTable.created_at))
+        .limit(5),
+    ]);
+
+    const recent_activity = recentOrders.map((o) => ({
+      id: o.id,
+      description: `Order #${o.id.slice(0, 8).toUpperCase()} — ₱${parseFloat(o.total_amount).toFixed(2)} (${o.status})`,
+      type: "order",
+      timestamp: o.created_at.toISOString(),
+    }));
+
     res.json({
       role: "customer",
-      total_orders: 0,
-      pending_reservations: 0,
+      total_orders: Number(orderCount[0]?.count ?? 0),
+      pending_reservations: Number(reservationCount[0]?.count ?? 0),
       loyalty_points: 0,
-      recent_activity: mockActivity("customer"),
+      recent_activity,
     });
-  }
+  },
 );
 
 router.get(
@@ -77,9 +108,8 @@ router.get(
       active_tables: Number(seatedWalkIns[0]?.count ?? 0) + Number(seatedReservations[0]?.count ?? 0),
       pending_orders: Number(pendingOrders[0]?.count ?? 0),
       todays_reservations: Number(todaysReservations[0]?.count ?? 0),
-      recent_activity: mockActivity("staff"),
     });
-  }
+  },
 );
 
 router.get(
@@ -113,9 +143,8 @@ router.get(
       orders_in_queue: Number(queueRows[0]?.count ?? 0),
       orders_completed_today: Number(completedRow[0]?.count ?? 0),
       avg_prep_time_minutes: Math.round(Number(avgRow[0]?.avg_minutes ?? 0) * 10) / 10,
-      recent_activity: mockActivity("kitchen staff"),
     });
-  }
+  },
 );
 
 router.get(
@@ -132,10 +161,7 @@ router.get(
         .where(and(eq(usersTable.role, "staff"), eq(usersTable.is_active, true))),
 
       db
-        .select({
-          total_revenue: sum(ordersTable.total_amount),
-          total_orders: count(),
-        })
+        .select({ total_revenue: sum(ordersTable.total_amount), total_orders: count() })
         .from(ordersTable)
         .where(and(gte(ordersTable.created_at, start), ne(ordersTable.status, "cancelled"))),
 
@@ -165,9 +191,8 @@ router.get(
       staff_on_duty: Number(staffCount[0]?.count ?? 0),
       avg_fulfillment_minutes: Math.round(Number(fulfillmentRow[0]?.avg_minutes ?? 0) * 10) / 10,
       order_counts_by_status: counts,
-      recent_activity: mockActivity("manager"),
     });
-  }
+  },
 );
 
 router.get(
@@ -177,27 +202,37 @@ router.get(
   async (req, res): Promise<void> => {
     const start = monthStart();
 
-    const [customerCount, staffCount, monthlyOrders] = await Promise.all([
+    const [customerCount, staffCount, monthlyOrders, recentOrders] = await Promise.all([
       db.select({ count: count() }).from(usersTable).where(eq(usersTable.role, "customer")),
-      db
-        .select({ count: count() })
-        .from(usersTable)
-        .where(and(eq(usersTable.is_active, true))),
+      db.select({ count: count() }).from(usersTable).where(eq(usersTable.is_active, true)),
       db
         .select({ total_revenue: sum(ordersTable.total_amount), total_orders: count() })
         .from(ordersTable)
         .where(and(gte(ordersTable.created_at, start), ne(ordersTable.status, "cancelled"))),
+      db
+        .select({ id: ordersTable.id, status: ordersTable.status, total_amount: ordersTable.total_amount, created_at: ordersTable.created_at })
+        .from(ordersTable)
+        .where(and(gte(ordersTable.created_at, start), ne(ordersTable.status, "cancelled")))
+        .orderBy(desc(ordersTable.created_at))
+        .limit(5),
     ]);
+
+    const recent_activity = recentOrders.map((o) => ({
+      id: o.id,
+      description: `Order #${o.id.slice(0, 8).toUpperCase()} — ₱${parseFloat(o.total_amount).toFixed(2)} (${o.status})`,
+      type: "order",
+      timestamp: o.created_at.toISOString(),
+    }));
 
     res.json({
       role: "owner",
       total_revenue_month: Number(monthlyOrders[0]?.total_revenue ?? 0),
       total_orders_month: Number(monthlyOrders[0]?.total_orders ?? 0),
-      total_customers: customerCount[0]?.count ?? 0,
-      total_staff: staffCount[0]?.count ?? 0,
-      recent_activity: mockActivity("owner"),
+      total_customers: Number(customerCount[0]?.count ?? 0),
+      total_staff: Number(staffCount[0]?.count ?? 0),
+      recent_activity,
     });
-  }
+  },
 );
 
 router.get(
@@ -205,27 +240,34 @@ router.get(
   requireAuth,
   requireRole("admin"),
   async (req, res): Promise<void> => {
-    const [userCount, sessionCount] = await Promise.all([
+    const [userCount, sessionCount, recentLogs] = await Promise.all([
       db.select({ count: count() }).from(usersTable),
       db
         .select({ count: count() })
         .from(sessionsTable)
-        .where(
-          and(
-            eq(sessionsTable.is_active, true),
-            gt(sessionsTable.expires_at, new Date())
-          )
-        ),
+        .where(and(eq(sessionsTable.is_active, true), gt(sessionsTable.expires_at, new Date()))),
+      db
+        .select({ id: auditLogsTable.id, actor_name: auditLogsTable.actor_name, action: auditLogsTable.action, details: auditLogsTable.details, created_at: auditLogsTable.created_at })
+        .from(auditLogsTable)
+        .orderBy(desc(auditLogsTable.created_at))
+        .limit(5),
     ]);
+
+    const recent_activity = recentLogs.map((l) => ({
+      id: l.id,
+      description: `${l.action} by ${l.actor_name}${l.details ? ` — ${l.details}` : ""}`,
+      type: "audit",
+      timestamp: l.created_at.toISOString(),
+    }));
 
     res.json({
       role: "admin",
-      total_users: userCount[0]?.count ?? 0,
-      active_sessions: sessionCount[0]?.count ?? 0,
+      total_users: Number(userCount[0]?.count ?? 0),
+      active_sessions: Number(sessionCount[0]?.count ?? 0),
       system_status: "healthy",
-      recent_activity: mockActivity("admin"),
+      recent_activity,
     });
-  }
+  },
 );
 
 export default router;

@@ -90,7 +90,7 @@ router.post(
       }
 
       await db.update(ordersTable).set({ is_archived: true }).where(eq(ordersTable.id, id));
-      logAudit(req.user!.userId, "Manager", "order.archived", `Order ${id.slice(0, 8).toUpperCase()} archived`);
+      logAudit(req.user!.userId, req.user!.email, "order.archived", `Order ${id.slice(0, 8).toUpperCase()} archived`);
       res.json({ success: true });
     } catch (err) {
       next(err);
@@ -107,7 +107,7 @@ router.delete(
     try {
       const id = String(req.params.id);
       await db.update(ordersTable).set({ is_archived: false }).where(eq(ordersTable.id, id));
-      logAudit(req.user!.userId, "Manager", "order.restored", `Order ${id.slice(0, 8).toUpperCase()} restored from archive`);
+      logAudit(req.user!.userId, req.user!.email, "order.restored", `Order ${id.slice(0, 8).toUpperCase()} restored from archive`);
       res.json({ success: true });
     } catch (err) {
       next(err);
@@ -131,7 +131,7 @@ router.post(
             eq(ordersTable.is_archived, false),
           ),
         );
-      logAudit(req.user!.userId, "Manager", "order.bulk_archived", "Bulk archived all completed/cancelled orders");
+      logAudit(req.user!.userId, req.user!.email, "order.bulk_archived", "Bulk archived all completed/cancelled orders");
       res.json({ success: true });
     } catch (err) {
       next(err);

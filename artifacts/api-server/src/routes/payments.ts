@@ -1,5 +1,5 @@
-import { Router, type IRouter } from "express";
-import { randomUUID } from "crypto";
+import express, { Router, type IRouter } from "express";
+import { randomUUID, createHmac, timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, menuItemsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
@@ -169,6 +169,63 @@ router.get("/payments/status/:linkId", requireAuth, async (req, res, next): Prom
     }
 
     res.json({ paid, link_status: linkStatus });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /payments/webhook — PayMongo webhook for payment.paid events
+// Register this URL in the PayMongo dashboard under Webhooks.
+// Set PAYMONGO_WEBHOOK_SECRET to the webhook's secret key.
+router.post("/payments/webhook", express.raw({ type: "application/json" }), async (req, res, next): Promise<void> => {
+  try {
+    const secret = process.env.PAYMONGO_WEBHOOK_SECRET ?? "";
+    const sigHeader = req.headers["paymongo-signature"] as string | undefined;
+
+    if (secret && sigHeader) {
+      // PayMongo signature format: "t=<timestamp>,te=<hmac>,li=<hmac>"
+      const parts = Object.fromEntries(
+        sigHeader.split(",").map((p) => p.split("=") as [string, string]),
+      );
+      const timestamp = parts["t"];
+      const testSig = parts["te"];
+      const liveSig = parts["li"];
+
+      if (timestamp && (testSig || liveSig)) {
+        const rawBody = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body);
+        const payload = `${timestamp}.${rawBody}`;
+        const expected = createHmac("sha256", secret).update(payload).digest("hex");
+        const provided = Buffer.from(testSig ?? liveSig ?? "", "hex");
+        const expectedBuf = Buffer.from(expected, "hex");
+
+        if (provided.length !== expectedBuf.length || !timingSafeEqual(provided, expectedBuf)) {
+          res.status(400).json({ error: "Invalid webhook signature" });
+          return;
+        }
+      }
+    }
+
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString("utf8")) : req.body;
+    const eventType: string = body?.data?.attributes?.type ?? "";
+
+    if (eventType === "payment.paid") {
+      const remarks: string = body?.data?.attributes?.data?.attributes?.description ?? "";
+      // remarks field on the payment link was set to "order:<orderId>"
+      const orderIdMatch = remarks.match(/order:([a-f0-9-]{36})/i);
+      if (orderIdMatch) {
+        const orderId = orderIdMatch[1];
+        const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+        if (order && order.status === "pending") {
+          await db
+            .update(ordersTable)
+            .set({ status: "confirmed", updated_at: new Date() })
+            .where(eq(ordersTable.id, orderId));
+          broadcast({ type: "order:updated", payload: { orderId, status: "confirmed" } });
+        }
+      }
+    }
+
+    res.json({ received: true });
   } catch (err) {
     next(err);
   }

@@ -185,6 +185,9 @@ export default function ManagerRefundsPage() {
           <p className="text-muted-foreground text-sm mt-1">
             Review and approve or reject customer refund requests. Refunds ≥ ₱{HIGH_VALUE_THRESHOLD} are escalated to the Owner.
           </p>
+          <p className="text-xs text-muted-foreground mt-1 bg-muted/40 rounded-lg px-3 py-2 border border-border">
+            Note: Approving a refund marks it as completed in this system. The actual money return must be processed manually through the PayMongo dashboard.
+          </p>
         </div>
 
         {pendingCount > 0 && (

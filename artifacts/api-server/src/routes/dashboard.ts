@@ -204,7 +204,7 @@ router.get(
 
     const [customerCount, staffCount, monthlyOrders, recentOrders] = await Promise.all([
       db.select({ count: count() }).from(usersTable).where(eq(usersTable.role, "customer")),
-      db.select({ count: count() }).from(usersTable).where(eq(usersTable.is_active, true)),
+      db.select({ count: count() }).from(usersTable).where(and(eq(usersTable.role, "staff"), eq(usersTable.is_active, true))),
       db
         .select({ total_revenue: sum(ordersTable.total_amount), total_orders: count() })
         .from(ordersTable)

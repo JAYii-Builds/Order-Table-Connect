@@ -110,6 +110,9 @@ export default function OwnerRefundsPage() {
           <p className="text-muted-foreground text-sm mt-1">
             Refund requests ≥ ₱500 that have been approved by the Manager and require your final decision.
           </p>
+          <p className="text-xs text-muted-foreground mt-1 bg-muted/40 rounded-lg px-3 py-2 border border-border">
+            Note: Approving a refund marks it as completed in this system. The actual money return must be processed manually through the PayMongo dashboard.
+          </p>
         </div>
 
         {refunds.length > 0 && (

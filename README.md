@@ -114,7 +114,7 @@ A full-stack restaurant ordering and table reservation system for **TableServe**
 |---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `JWT_SECRET` | Yes | Secret used to sign and verify JWT tokens |
-| `RESEND_API_KEY` | Optional | Resend API key for welcome emails on registration |
+| `RESEND_API_KEY` | Optional | Resend API key for welcome emails on registration. **Note:** emails only send to verified addresses while using the sandbox sender (`onboarding@resend.dev`). To send to any address, verify a custom domain in the Resend dashboard and update the `from` address in `lib/email.ts`. |
 | `VITE_API_BASE_URL` | Optional | Absolute backend URL for production frontend (e.g. Render URL) |
 | `ALLOWED_ORIGIN` | Optional | Allowed CORS origin in production (e.g. Netlify URL) |
 

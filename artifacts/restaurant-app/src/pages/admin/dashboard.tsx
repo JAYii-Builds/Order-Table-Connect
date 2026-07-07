@@ -60,6 +60,7 @@ export default function AdminDashboard() {
               value={data?.system_status ?? "unknown"}
               icon={Server}
               colorClass={statusColor}
+              description="Static indicator — check logs for real health"
               testId="stat-system-status"
             />
           </div>

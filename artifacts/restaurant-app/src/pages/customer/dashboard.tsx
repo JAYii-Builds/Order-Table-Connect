@@ -52,10 +52,10 @@ export default function CustomerDashboard() {
             />
             <StatCard
               title="Loyalty Points"
-              value={data?.loyalty_points ?? 0}
+              value="Coming Soon"
               icon={Star}
-              description="Earn points with every order"
-              colorClass="bg-primary/15 text-primary"
+              description="Loyalty rewards launching soon"
+              colorClass="bg-muted/40 text-muted-foreground"
               testId="stat-loyalty-points"
             />
           </div>

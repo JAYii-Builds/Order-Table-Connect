@@ -3,7 +3,16 @@ import { logger } from "./logger";
 const SEMAPHORE_API_KEY = process.env.SEMAPHORE_API_KEY;
 const SENDER_NAME = "TABLESERV";
 
+// Feature flag — SMS notifications are disabled per client request.
+// The Semaphore integration below is kept intact but inactive.
+// Set SMS_ENABLED=true in the environment to re-enable.
+const SMS_ENABLED = process.env.SMS_ENABLED === "true";
+
 export async function sendSMS(phoneNumber: string, message: string): Promise<void> {
+  if (!SMS_ENABLED) {
+    // SMS notifications disabled — no-op.
+    return;
+  }
   if (!SEMAPHORE_API_KEY) {
     logger.warn("SEMAPHORE_API_KEY not set — skipping SMS");
     return;

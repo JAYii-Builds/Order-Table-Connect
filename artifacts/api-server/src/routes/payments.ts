@@ -9,6 +9,11 @@ const router: IRouter = Router();
 
 const PAYMONGO_BASE = "https://api.paymongo.com/v1";
 
+// Feature flag — online payment gateway (PayMongo) is disabled per client request.
+// All PayMongo integration code below is kept intact but inactive.
+// Set ONLINE_PAYMENTS_ENABLED=true in the environment to re-enable.
+const ONLINE_PAYMENTS_ENABLED = process.env.ONLINE_PAYMENTS_ENABLED === "true";
+
 function paymongoAuth(): string {
   const key = process.env.PAYMONGO_SECRET_KEY ?? "";
   return `Basic ${Buffer.from(`${key}:`).toString("base64")}`;
@@ -22,6 +27,10 @@ interface CreateLinkBody {
 // POST /payments/create-link — creates order + PayMongo payment link
 router.post("/payments/create-link", requireAuth, async (req, res, next): Promise<void> => {
   try {
+    if (!ONLINE_PAYMENTS_ENABLED) {
+      res.status(503).json({ error: "Online payment is currently unavailable. Please pay at the counter." });
+      return;
+    }
     const user = req.user!;
     const { items, notes } = req.body as CreateLinkBody;
 

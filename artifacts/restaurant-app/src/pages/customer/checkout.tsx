@@ -20,6 +20,10 @@ import { getApiBaseUrl } from "@/lib/api-config";
 
 const MIN_RESERVATION_AMOUNT = 200;
 
+// Feature flag — online payment gateway (PayMongo) is disabled per client request.
+// The PayMongo integration code below is kept intact but inactive. Set to true to re-enable.
+const ONLINE_PAYMENT_ENABLED = false;
+
 interface PlacedOrder {
   id: string;
   total_amount: number;
@@ -177,7 +181,9 @@ export default function CustomerCheckoutPage() {
             Checkout
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Review your order and choose how to pay.
+            {ONLINE_PAYMENT_ENABLED
+              ? "Review your order and choose how to pay."
+              : "Review your order and place it — pay at the counter."}
           </p>
         </div>
 
@@ -246,44 +252,54 @@ export default function CustomerCheckoutPage() {
             </div>
 
             {/* Payment method */}
-            <div className="bg-card border border-card-border rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-border bg-muted/40">
-                <h2 className="text-sm font-semibold text-foreground">Payment Method</h2>
-              </div>
-              <div className="p-4 space-y-2">
-                <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "place_order" ? "border-primary bg-primary/5" : "border-border hover:border-foreground/20"}`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="place_order"
-                    checked={paymentMethod === "place_order"}
-                    onChange={() => setPaymentMethod("place_order")}
-                    className="accent-primary"
-                  />
-                  <Wallet className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Pay at Counter</p>
-                    <p className="text-xs text-muted-foreground">Order now, pay when you arrive or at delivery</p>
-                  </div>
-                </label>
+            {ONLINE_PAYMENT_ENABLED ? (
+              <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-border bg-muted/40">
+                  <h2 className="text-sm font-semibold text-foreground">Payment Method</h2>
+                </div>
+                <div className="p-4 space-y-2">
+                  <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "place_order" ? "border-primary bg-primary/5" : "border-border hover:border-foreground/20"}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="place_order"
+                      checked={paymentMethod === "place_order"}
+                      onChange={() => setPaymentMethod("place_order")}
+                      className="accent-primary"
+                    />
+                    <Wallet className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Pay at Counter</p>
+                      <p className="text-xs text-muted-foreground">Order now, pay when you arrive or at delivery</p>
+                    </div>
+                  </label>
 
-                <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "paymongo" ? "border-primary bg-primary/5" : "border-border hover:border-foreground/20"}`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="paymongo"
-                    checked={paymentMethod === "paymongo"}
-                    onChange={() => setPaymentMethod("paymongo")}
-                    className="accent-primary"
-                  />
-                  <CreditCard className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Online Payment</p>
-                    <p className="text-xs text-muted-foreground">Pay via GCash, Maya, or card through PayMongo</p>
-                  </div>
-                </label>
+                  <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "paymongo" ? "border-primary bg-primary/5" : "border-border hover:border-foreground/20"}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="paymongo"
+                      checked={paymentMethod === "paymongo"}
+                      onChange={() => setPaymentMethod("paymongo")}
+                      className="accent-primary"
+                    />
+                    <CreditCard className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Online Payment</p>
+                      <p className="text-xs text-muted-foreground">Pay via GCash, Maya, or card through PayMongo</p>
+                    </div>
+                  </label>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 bg-card border border-card-border rounded-xl px-5 py-4">
+                <Wallet className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Pay at Counter</p>
+                  <p className="text-xs text-muted-foreground">Order now, pay with cash when you arrive or at delivery.</p>
+                </div>
+              </div>
+            )}
 
             {/* Reservation notice */}
             {total >= MIN_RESERVATION_AMOUNT && (

@@ -238,3 +238,11 @@ The frontend deploys to **Netlify** and the backend to **Render**.
 - **`requireRole` takes spread args** — Call as `requireRole("staff", "manager")`, not `requireRole(["staff", "manager"])`.
 - **Reservation minimum** — The backend enforces a ₱200 minimum order value before a reservation can be created. This cannot be bypassed from the frontend.
 - **DB URL priority** — `SUPABASE_DB_URL` takes precedence over `DATABASE_URL` if both are set (see `lib/db/src/index.ts`).
+
+
+
+
+
+
+
+
